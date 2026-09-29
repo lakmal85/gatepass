@@ -1,339 +1,391 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0d9488">
-    <title>Gate Pass Management System</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d9488">
+<title>Gate Pass Management System</title>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD73rkPwCGrZsrK2DdKM59A8yx8YkP8Doc&libraries=geometry,places"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD73rkPwCGrZsrK2DdKM59A8yx8YkP8Doc&libraries=geometry,places"></script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, push, set, onValue, update, serverTimestamp }
-            from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL }
-            from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, set, onValue, update, get, child }
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL }
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCzIgd061S77b_QSdl9aDHg2p_DEICENRw",
-            authDomain: "expensetracker-a81ee.firebaseapp.com",
-            databaseURL: "https://expensetracker-a81ee-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "expensetracker-a81ee",
-            storageBucket: "expensetracker-a81ee.firebasestorage.app",
-            messagingSenderId: "386142221621",
-            appId: "1:386142221621:web:a5344f1ec37983b3e2087c",
-            measurementId: "G-Y3Q9R12J2G"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyCzIgd061S77b_QSdl9aDHg2p_DEICENRw",
+        authDomain: "expensetracker-a81ee.firebaseapp.com",
+        databaseURL: "https://expensetracker-a81ee-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "expensetracker-a81ee",
+        storageBucket: "expensetracker-a81ee.firebasestorage.app",
+        messagingSenderId: "386142221621",
+        appId: "1:386142221621:web:a5344f1ec37983b3e2087c"
+    };
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            const db = getDatabase(app);
-            const storage = getStorage(app);
-            window.FirebaseApp = { db, storage, ref, push, set, onValue, update, serverTimestamp, storageRef, uploadBytesResumable, getDownloadURL };
-            console.log('✅ Firebase initialized');
-        } catch (err) {
-            console.error('❌ Firebase init failed:', err);
-            window.FirebaseInitError = err;
-        }
-    </script>
+    try {
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const storage = getStorage(app);
+        window.FirebaseApp = { db, storage, ref, push, set, onValue, update, get, child,
+                               storageRef, uploadBytesResumable, getDownloadURL };
+        console.log('✅ Firebase ready');
+    } catch (err) {
+        console.error('❌ Firebase init failed:', err);
+        window.FirebaseInitError = err;
+    }
+</script>
 
-    <style>
-        :root {
-            --primary-green: #0d9488;
-            --primary-green-light: #14b8a6;
-            --primary-green-dark: #0f766e;
-            --primary-blue: #1e40af;
-            --primary-blue-light: #3b82f6;
-            --primary-blue-dark: #1e3a8a;
-            --white: #ffffff;
-            --off-white: #f8fafc;
-            --gray-50: #f1f5f9;
-            --gray-100: #e2e8f0;
-            --gray-200: #cbd5e1;
-            --gray-400: #94a3b8;
-            --gray-600: #475569;
-            --gray-800: #1e293b;
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+<style>
+:root{
+    --green:#0d9488; --green-l:#14b8a6; --green-d:#0f766e;
+    --blue:#1e40af; --blue-l:#3b82f6; --blue-d:#1e3a8a;
+    --white:#fff; --off:#f8fafc;
+    --g50:#f1f5f9; --g100:#e2e8f0; --g200:#cbd5e1;
+    --g400:#94a3b8; --g600:#475569; --g800:#1e293b;
+    --red:#dc2626;
+    --sh-sm:0 1px 2px rgba(0,0,0,.05);
+    --sh-md:0 4px 6px -1px rgba(0,0,0,.1);
+    --sh-lg:0 10px 15px -3px rgba(0,0,0,.1);
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:24px;
+    --t:all .3s cubic-bezier(.4,0,.2,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+     background:var(--off);color:var(--g800);min-height:100vh;overflow-x:hidden}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* ========= LOGIN ========= */
+#loginScreen{
+    position:fixed;inset:0;z-index:5000;
+    background:linear-gradient(135deg,#0f766e 0%,#1e40af 100%);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    transition:opacity .4s ease,visibility .4s ease;
+}
+#loginScreen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.login-card{
+    background:#fff;border-radius:24px;padding:32px 26px;
+    width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);
+    animation:slideUp .5s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.login-logo{
+    width:70px;height:70px;border-radius:20px;margin:0 auto 16px;
+    background:linear-gradient(135deg,var(--green),var(--blue));
+    display:flex;align-items:center;justify-content:center;
+    font-size:2rem;box-shadow:0 8px 24px rgba(13,148,136,.4);
+}
+.login-card h1{font-size:1.4rem;text-align:center;color:var(--g800);margin-bottom:4px}
+.login-card .sub{font-size:.85rem;text-align:center;color:var(--g400);margin-bottom:24px}
+.role-tabs{display:flex;background:var(--g50);border-radius:12px;padding:4px;gap:4px;margin-bottom:20px}
+.role-tabs button{
+    flex:1;padding:10px 6px;border:none;background:transparent;border-radius:8px;
+    font-size:.75rem;font-weight:600;color:var(--g600);cursor:pointer;
+    transition:var(--t);font-family:inherit;
+}
+.role-tabs button.active{background:#fff;color:var(--green-d);box-shadow:var(--sh-sm)}
+.login-error{
+    background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;
+    font-size:.8rem;margin-bottom:14px;display:none;
+}
+.login-error.show{display:block;animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
-            background: var(--off-white); color: var(--gray-800);
-            min-height: 100vh; overflow-x: hidden;
-        }
+/* ========= APP SHELL ========= */
+.app-container{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;
+    position:relative;box-shadow:0 0 40px rgba(0,0,0,.08)}
+.app-header{
+    background:linear-gradient(135deg,var(--green),var(--blue));
+    color:#fff;padding:20px 20px 16px;position:sticky;top:0;z-index:100;
+    border-radius:0 0 24px 24px;box-shadow:var(--sh-lg);
+}
+.app-header h1{font-size:1.15rem;font-weight:700;letter-spacing:-.02em}
+.app-header .subtitle{font-size:.75rem;opacity:.85;margin-top:2px}
+.header-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.header-right{display:flex;align-items:center;gap:8px}
+.user-chip{
+    background:rgba(255,255,255,.2);backdrop-filter:blur(10px);
+    padding:5px 10px;border-radius:20px;font-size:.7rem;font-weight:600;
+    border:1px solid rgba(255,255,255,.3);max-width:110px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;
+}
+.logout-btn{
+    background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);
+    color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:.9rem;
+    transition:var(--t);
+}
+.logout-btn:active{transform:scale(.9)}
 
-        .app-container {
-            max-width: 480px; margin: 0 auto; min-height: 100vh;
-            background: var(--white); position: relative;
-            box-shadow: 0 0 40px rgba(0,0,0,0.08);
-        }
+/* ========= ROLE SWITCHER (top) ========= */
+.role-switcher{display:flex;background:var(--g100);border-radius:16px;
+    margin:16px 20px;padding:4px;gap:4px}
+.role-switcher button{
+    flex:1;padding:10px 8px;border:none;background:transparent;border-radius:8px;
+    font-size:.78rem;font-weight:600;color:var(--g600);cursor:pointer;
+    transition:var(--t);font-family:inherit;
+}
+.role-switcher button.active{background:#fff;color:var(--green-d);box-shadow:var(--sh-sm)}
 
-        .app-header {
-            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
-            color: var(--white); padding: 20px 20px 16px;
-            position: sticky; top: 0; z-index: 100;
-            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-            box-shadow: var(--shadow-lg);
-        }
-        .app-header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
-        .app-header .subtitle { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
-        .app-header .header-row { display: flex; justify-content: space-between; align-items: center; }
-        .app-header .status-badge {
-            background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);
-            padding: 6px 12px; border-radius: 20px; font-size: 0.75rem;
-            font-weight: 600; border: 1px solid rgba(255,255,255,0.3);
-        }
+/* ========= PANELS ========= */
+.panel{display:none;padding:0 20px 100px;animation:fadeIn .3s ease}
+.panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-        .role-switcher {
-            display: flex; background: var(--gray-100);
-            border-radius: var(--radius-lg); margin: 16px 20px;
-            padding: 4px; gap: 4px;
-        }
-        .role-switcher button {
-            flex: 1; padding: 10px 8px; border: none; background: transparent;
-            border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 600;
-            color: var(--gray-600); cursor: pointer; transition: var(--transition);
-            font-family: inherit;
-        }
-        .role-switcher button.active {
-            background: var(--white); color: var(--primary-green-dark);
-            box-shadow: var(--shadow-sm);
-        }
+/* ========= CARDS ========= */
+.card{background:#fff;border:1px solid var(--g100);border-radius:16px;
+    padding:16px;margin-bottom:12px;box-shadow:var(--sh-sm);transition:var(--t)}
+.card:hover{box-shadow:var(--sh-md)}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px}
+.card-title{font-size:.95rem;font-weight:700;color:var(--g800)}
+.card-subtitle{font-size:.78rem;color:var(--g400);margin-top:2px}
 
-        .panel { display: none; padding: 0 20px 100px; animation: fadeIn 0.3s ease; }
-        .panel.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+/* ========= FORMS ========= */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--g600);margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{
+    width:100%;padding:12px 14px;border:1.5px solid var(--g200);
+    border-radius:8px;font-size:.9rem;font-family:inherit;background:#fff;
+    color:var(--g800);transition:var(--t);outline:none;
+}
+.form-group input:focus,.form-group textarea:focus{
+    border-color:var(--green);box-shadow:0 0 0 3px rgba(13,148,136,.12)}
+.form-group textarea{resize:vertical;min-height:70px}
 
-        .card {
-            background: var(--white); border: 1px solid var(--gray-100);
-            border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px;
-            box-shadow: var(--shadow-sm); transition: var(--transition);
-        }
-        .card:hover { box-shadow: var(--shadow-md); }
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .card-title { font-size: 0.95rem; font-weight: 700; color: var(--gray-800); }
-        .card-subtitle { font-size: 0.8rem; color: var(--gray-400); margin-top: 2px; }
+/* ========= BUTTONS ========= */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:13px 24px;border:none;border-radius:8px;font-size:.9rem;
+    font-weight:600;font-family:inherit;cursor:pointer;transition:var(--t);width:100%}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;
+    box-shadow:0 4px 14px rgba(13,148,136,.35)}
+.btn-outline{background:transparent;color:var(--green-d);border:1.5px solid var(--green)}
+.btn-sm{padding:8px 16px;font-size:.8rem;width:auto}
+.btn-red{background:var(--red);color:#fff}
 
-        .form-group { margin-bottom: 14px; }
-        .form-group label {
-            display: block; font-size: 0.8rem; font-weight: 600;
-            color: var(--gray-600); margin-bottom: 6px;
-        }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 12px 14px;
-            border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
-            font-size: 0.9rem; font-family: inherit; background: var(--white);
-            color: var(--gray-800); transition: var(--transition); outline: none;
-        }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            border-color: var(--primary-green);
-            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
-        }
-        .form-group textarea { resize: vertical; min-height: 70px; }
+/* ========= CAMERA CAPTURE BUTTON ========= */
+.camera-capture-btn{
+    border:2px dashed var(--g200);border-radius:12px;padding:22px;
+    text-align:center;cursor:pointer;transition:var(--t);background:var(--g50);
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.camera-capture-btn:hover{border-color:var(--green);background:rgba(13,148,136,.04)}
+.camera-capture-btn .icon{font-size:1.8rem}
+.camera-capture-btn span{font-size:.8rem;font-weight:600;color:var(--g600)}
+.captured-preview{
+    width:100%;max-height:200px;object-fit:cover;border-radius:8px;
+    margin-top:10px;display:none;border:2px solid var(--green);
+}
 
-        .btn {
-            display: inline-flex; align-items: center; justify-content: center;
-            gap: 8px; padding: 13px 24px; border: none;
-            border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600;
-            font-family: inherit; cursor: pointer;
-            transition: var(--transition); width: 100%;
-        }
-        .btn:active { transform: scale(0.97); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
-            color: var(--white); box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
-        }
-        .btn-primary:hover { box-shadow: 0 6px 20px rgba(13, 148, 136, 0.45); }
-        .btn-outline {
-            background: transparent; color: var(--primary-green-dark);
-            border: 1.5px solid var(--primary-green);
-        }
-        .btn-sm { padding: 8px 16px; font-size: 0.8rem; width: auto; }
-        .btn-danger { background: #dc2626; color: white; }
+/* ========= CAMERA MODAL ========= */
+#cameraModal{
+    position:fixed;inset:0;z-index:6000;background:#000;
+    display:none;flex-direction:column;
+}
+#cameraModal.show{display:flex}
+#cameraVideo{flex:1;width:100%;object-fit:cover;background:#000}
+.camera-controls{
+    padding:16px 20px calc(16px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(0,0,0,.5),#000);
+    display:flex;align-items:center;justify-content:space-around;
+}
+.cam-btn{
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+    color:#fff;width:52px;height:52px;border-radius:50%;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:1.3rem;
+    transition:var(--t);font-family:inherit;
+}
+.cam-btn:active{transform:scale(.9)}
+.cam-shutter{
+    width:72px;height:72px;border-radius:50%;background:#fff;
+    border:5px solid rgba(255,255,255,.35);cursor:pointer;
+    transition:var(--t);
+}
+.cam-shutter:active{transform:scale(.92)}
+.camera-header{
+    position:absolute;top:0;left:0;right:0;padding:16px 20px;
+    display:flex;justify-content:space-between;align-items:center;
+    background:linear-gradient(180deg,rgba(0,0,0,.6),transparent);z-index:10;
+}
+.camera-header .title{color:#fff;font-size:.9rem;font-weight:600}
+.camera-header button{
+    background:rgba(255,255,255,.15);border:none;color:#fff;
+    width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem;
+}
+#capturePreview{
+    position:absolute;inset:0;background:#000;display:none;
+    flex-direction:column;
+}
+#capturePreview.show{display:flex}
+#capturePreview img{flex:1;width:100%;object-fit:contain;background:#000}
+.capture-actions{
+    display:flex;gap:12px;padding:20px;background:#000;
+}
+.capture-actions .btn{flex:1}
 
-        .image-upload-area {
-            border: 2px dashed var(--gray-200); border-radius: var(--radius-md);
-            padding: 24px; text-align: center; cursor: pointer;
-            transition: var(--transition); background: var(--gray-50);
-        }
-        .image-upload-area:hover {
-            border-color: var(--primary-green); background: rgba(13, 148, 136, 0.04);
-        }
-        .image-upload-area input { display: none; }
-        .image-preview {
-            width: 100%; max-height: 180px; object-fit: cover;
-            border-radius: var(--radius-sm); margin-top: 10px; display: none;
-        }
+/* ========= BADGES ========= */
+.badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;
+    font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.badge-pending{background:#fef3c7;color:#92400e}
+.badge-released{background:#d1fae5;color:#065f46}
+.badge-delivered{background:#dbeafe;color:#1e40af}
 
-        .badge {
-            display: inline-flex; align-items: center; padding: 4px 10px;
-            border-radius: 20px; font-size: 0.7rem; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.03em;
-        }
-        .badge-pending { background: #fef3c7; color: #92400e; }
-        .badge-released { background: #d1fae5; color: #065f46; }
-        .badge-delivered { background: #dbeafe; color: #1e40af; }
+/* ========= MAP ========= */
+.map-container{width:100%;height:300px;border-radius:16px;overflow:hidden;
+    margin-bottom:16px;box-shadow:var(--sh-md);border:2px solid var(--green)}
 
-        .map-container {
-            width: 100%; height: 320px; border-radius: var(--radius-lg);
-            overflow: hidden; margin-bottom: 16px; box-shadow: var(--shadow-md);
-            border: 2px solid var(--primary-green);
-        }
+.live-indicator{display:flex;align-items:center;gap:8px;padding:10px 14px;
+    background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(30,64,175,.08));
+    border-radius:8px;font-size:.78rem;color:var(--g600);margin-bottom:12px;
+    border:1px solid rgba(13,148,136,.15)}
+.live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;
+    animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
 
-        .live-indicator {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 14px;
-            background: linear-gradient(135deg, rgba(13,148,136,0.08), rgba(30,64,175,0.08));
-            border-radius: var(--radius-sm); font-size: 0.8rem;
-            color: var(--gray-600); margin-bottom: 12px;
-            border: 1px solid rgba(13,148,136,0.15);
-        }
-        .live-dot {
-            width: 8px; height: 8px; background: var(--primary-green);
-            border-radius: 50%; animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.3); }
-        }
+/* ========= EMPTY / SECTION ========= */
+.empty-state{text-align:center;padding:40px 20px;color:var(--g400)}
+.empty-state .icon{font-size:2.5rem;margin-bottom:12px;opacity:.5}
+.empty-state p{font-size:.82rem}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px}
+.section-header h2{font-size:.98rem;font-weight:700;color:var(--g800)}
+.section-header .count{background:var(--green);color:#fff;padding:2px 10px;
+    border-radius:12px;font-size:.72rem;font-weight:700}
+.refresh-btn{
+    background:var(--g50);border:1px solid var(--g100);color:var(--g600);
+    padding:6px 12px;border-radius:20px;font-size:.72rem;font-weight:600;
+    cursor:pointer;font-family:inherit;transition:var(--t);
+}
+.refresh-btn:active{transform:scale(.95)}
 
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); }
-        .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5; }
-        .empty-state p { font-size: 0.85rem; }
+/* ========= DETAIL ROW ========= */
+.detail-row{display:flex;justify-content:space-between;padding:8px 0;
+    border-bottom:1px solid var(--g50);font-size:.82rem}
+.detail-row:last-child{border-bottom:none}
+.detail-row .label{color:var(--g400);font-weight:500}
+.detail-row .value{color:var(--g800);font-weight:600;text-align:right;
+    max-width:60%;word-break:break-word}
 
-        .section-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin: 20px 0 12px;
-        }
-        .section-header h2 { font-size: 1rem; font-weight: 700; color: var(--gray-800); }
-        .section-header .count {
-            background: var(--primary-green); color: white;
-            padding: 2px 10px; border-radius: 12px;
-            font-size: 0.75rem; font-weight: 700;
-        }
+/* ========= TOAST ========= */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);
+    background:var(--g800);color:#fff;padding:12px 24px;border-radius:16px;
+    font-size:.83rem;font-weight:500;box-shadow:var(--sh-lg);z-index:9999;
+    transition:transform .4s cubic-bezier(.4,0,.2,1);max-width:90%;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{background:var(--green-d)}
+.toast.error{background:var(--red)}
 
-        .detail-row {
-            display: flex; justify-content: space-between;
-            padding: 8px 0; border-bottom: 1px solid var(--gray-50);
-            font-size: 0.83rem;
-        }
-        .detail-row:last-child { border-bottom: none; }
-        .detail-row .label { color: var(--gray-400); font-weight: 500; }
-        .detail-row .value {
-            color: var(--gray-800); font-weight: 600;
-            text-align: right; max-width: 60%;
-        }
+/* ========= BOTTOM NAV ========= */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+    max-width:480px;width:100%;background:#fff;border-top:1px solid var(--g100);
+    display:flex;justify-content:space-around;
+    padding:8px 0 max(8px,env(safe-area-inset-bottom));z-index:200;
+    box-shadow:0 -4px 12px rgba(0,0,0,.05)}
+.bottom-nav button{display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:none;font-family:inherit;font-size:.65rem;font-weight:600;
+    color:var(--g400);cursor:pointer;padding:4px 12px;transition:var(--t);
+    border-radius:8px}
+.bottom-nav button.active{color:var(--green)}
+.bottom-nav button .nav-icon{font-size:1.2rem}
 
-        .toast {
-            position: fixed; bottom: 30px; left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: var(--gray-800); color: var(--white);
-            padding: 12px 24px; border-radius: var(--radius-lg);
-            font-size: 0.85rem; font-weight: 500; box-shadow: var(--shadow-lg);
-            z-index: 1000; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            max-width: 90%; text-align: center;
-        }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        .toast.success { background: var(--primary-green-dark); }
-        .toast.error { background: #dc2626; }
+@media(min-width:481px){
+    .app-container{border-radius:24px;margin:20px auto;
+        min-height:calc(100vh - 40px);overflow:hidden}
+}
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+    display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 50%;
-            transform: translateX(-50%); max-width: 480px; width: 100%;
-            background: var(--white); border-top: 1px solid var(--gray-100);
-            display: flex; justify-content: space-around;
-            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-            z-index: 200; box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
-        }
-        .bottom-nav button {
-            display: flex; flex-direction: column; align-items: center; gap: 3px;
-            background: none; border: none; font-family: inherit;
-            font-size: 0.65rem; font-weight: 600; color: var(--gray-400);
-            cursor: pointer; padding: 4px 12px; transition: var(--transition);
-            border-radius: var(--radius-sm);
-        }
-        .bottom-nav button.active { color: var(--primary-green); }
-        .bottom-nav button .nav-icon { font-size: 1.2rem; }
-
-        @media (min-width: 481px) {
-            .app-container {
-                border-radius: var(--radius-xl); margin: 20px auto;
-                min-height: calc(100vh - 40px); overflow: hidden;
-            }
-        }
-
-        .spinner {
-            width: 20px; height: 20px;
-            border: 2.5px solid rgba(255,255,255,0.3);
-            border-top-color: white; border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            display: inline-block;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .upload-progress {
-            height: 4px; background: var(--gray-100);
-            border-radius: 2px; overflow: hidden; margin-top: 8px;
-        }
-        .upload-progress .bar {
-            height: 100%; background: var(--primary-green);
-            width: 0%; transition: width 0.3s ease;
-        }
-    </style>
+.upload-progress{height:4px;background:var(--g100);border-radius:2px;
+    overflow:hidden;margin-top:8px}
+.upload-progress .bar{height:100%;background:var(--green);width:0%;
+    transition:width .3s ease}
+</style>
 </head>
 <body>
 
-<div class="app-container" id="app">
+<!-- ======================= LOGIN ======================= -->
+<div id="loginScreen">
+    <div class="login-card">
+        <div class="login-logo">🔐</div>
+        <h1>Gate Pass System</h1>
+        <p class="sub">Secure Access Portal</p>
+
+        <div class="role-tabs" id="loginRoleTabs">
+            <button class="active" data-role="gate">🚪 Gate</button>
+            <button data-role="department">🏢 Dept</button>
+            <button data-role="carrier">🚚 Carrier</button>
+        </div>
+
+        <div class="login-error" id="loginError"></div>
+
+        <form id="loginForm" autocomplete="on">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="loginUser" placeholder="Enter username"
+                       autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPass" placeholder="Enter password"
+                       autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" id="loginBtn">
+                🔓 Sign In
+            </button>
+        </form>
+
+        <p style="text-align:center;font-size:.72rem;color:var(--g400);margin-top:18px;line-height:1.6">
+            <strong>Demo Accounts</strong><br>
+            gate / gate123 &nbsp;·&nbsp; dept / dept123 &nbsp;·&nbsp; carrier / carrier123
+        </p>
+    </div>
+</div>
+
+<!-- ======================= APP ======================= -->
+<div class="app-container" id="app" style="display:none">
+
     <header class="app-header">
         <div class="header-row">
             <div>
                 <h1 id="headerTitle">Main Gate</h1>
                 <p class="subtitle" id="headerSubtitle">Security Dashboard</p>
             </div>
-            <div class="status-badge" id="headerBadge">● Online</div>
+            <div class="header-right">
+                <div class="user-chip" id="userChip">User</div>
+                <button class="logout-btn" onclick="logout()" title="Logout">⎋</button>
+            </div>
         </div>
     </header>
 
+    <!-- Role switcher hidden — role is fixed after login -->
+    <!-- Uncomment below if you want to allow switching roles after login -->
+    <!--
     <div class="role-switcher" id="roleSwitcher">
         <button class="active" data-role="gate" onclick="switchRole('gate')">🚪 Main Gate</button>
         <button data-role="department" onclick="switchRole('department')">🏢 Department</button>
         <button data-role="carrier" onclick="switchRole('carrier')">🚚 Carrier</button>
     </div>
+    -->
 
-    <div class="panel active" id="panel-gate">
+    <!-- === MAIN GATE PANEL === -->
+    <div class="panel" id="panel-gate">
         <div class="section-header">
             <h2>Pending Releases</h2>
-            <span class="count" id="pendingCount">0</span>
-        </div>
-        <div id="pendingList">
-            <div class="empty-state">
-                <div class="icon">📭</div>
-                <p>No pending items. Department records will appear here in real-time.</p>
+            <div style="display:flex;gap:8px;align-items:center">
+                <button class="refresh-btn" onclick="manualRefresh()">🔄 Refresh</button>
+                <span class="count" id="pendingCount">0</span>
             </div>
         </div>
+        <div id="pendingList"></div>
 
-        <div class="section-header">
-            <h2>Recent Releases</h2>
-        </div>
-        <div id="releasedList">
-            <div class="empty-state">
-                <div class="icon">📋</div>
-                <p>No released items yet.</p>
-            </div>
-        </div>
+        <div class="section-header"><h2>Recent Releases</h2></div>
+        <div id="releasedList"></div>
     </div>
 
+    <!-- === DEPARTMENT PANEL === -->
     <div class="panel" id="panel-department">
         <div class="section-header"><h2>Create Gate Pass Record</h2></div>
         <form id="deptForm" class="card">
@@ -346,11 +398,11 @@
                 <input type="text" id="deptModel" placeholder="e.g., Dell Latitude 5420" required>
             </div>
             <div class="form-group">
-                <label>Description *</label>
-                <textarea id="deptDescription" placeholder="Item details, condition, accessories..."></textarea>
+                <label>Description</label>
+                <textarea id="deptDescription" placeholder="Item details, condition..."></textarea>
             </div>
             <div class="form-group">
-                <label>Delivery From (Department) *</label>
+                <label>Delivery From *</label>
                 <input type="text" id="deptFrom" placeholder="e.g., IT Department" required>
             </div>
             <div class="form-group">
@@ -358,7 +410,7 @@
                 <input type="text" id="deptTo" placeholder="e.g., 123 Galle Road, Colombo 03" required>
             </div>
             <div class="form-group">
-                <label>Recipient / Carrier Name *</label>
+                <label>Carrier Name *</label>
                 <input type="text" id="deptCarrier" placeholder="Person taking the item" required>
             </div>
             <div class="form-group">
@@ -369,21 +421,25 @@
                 <label>Date *</label>
                 <input type="date" id="deptDate" required>
             </div>
-            <button type="submit" class="btn btn-primary">📤 Send to Main Gate</button>
+            <button type="submit" class="btn btn-primary" id="deptSubmitBtn">
+                📤 Send to Main Gate
+            </button>
         </form>
 
-        <div class="section-header"><h2>My Department Records</h2></div>
+        <div class="section-header">
+            <h2>My Department Records</h2>
+            <button class="refresh-btn" onclick="manualRefresh()">🔄 Refresh</button>
+        </div>
         <div id="deptRecords"></div>
     </div>
 
+    <!-- === CARRIER PANEL === -->
     <div class="panel" id="panel-carrier">
-        <div class="section-header"><h2>My Assigned Items</h2></div>
-        <div id="carrierItems">
-            <div class="empty-state">
-                <div class="icon">📦</div>
-                <p>No items assigned. Items released from Main Gate will appear here.</p>
-            </div>
+        <div class="section-header">
+            <h2>My Assigned Items</h2>
+            <button class="refresh-btn" onclick="manualRefresh()">🔄 Refresh</button>
         </div>
+        <div id="carrierItems"></div>
 
         <div id="carrierMapSection" style="display:none;">
             <div class="section-header"><h2>Live Route Tracking</h2></div>
@@ -393,667 +449,911 @@
             </div>
             <div class="map-container" id="map"></div>
             <div class="card">
-                <div class="detail-row"><span class="label">Distance to Destination</span><span class="value" id="distanceInfo">Calculating...</span></div>
-                <div class="detail-row"><span class="label">Estimated Time</span><span class="value" id="etaInfo">--</span></div>
-                <div class="detail-row"><span class="label">Last Updated</span><span class="value" id="lastUpdate">--</span></div>
+                <div class="detail-row"><span class="label">Distance</span>
+                    <span class="value" id="distanceInfo">--</span></div>
+                <div class="detail-row"><span class="label">ETA</span>
+                    <span class="value" id="etaInfo">--</span></div>
+                <div class="detail-row"><span class="label">Last Updated</span>
+                    <span class="value" id="lastUpdate">--</span></div>
             </div>
         </div>
     </div>
 
     <nav class="bottom-nav" id="bottomNav">
-        <button class="active" onclick="switchRole('gate')"><span class="nav-icon">🚪</span><span>Gate</span></button>
-        <button onclick="switchRole('department')"><span class="nav-icon">🏢</span><span>Department</span></button>
-        <button onclick="switchRole('carrier')"><span class="nav-icon">🚚</span><span>Carrier</span></button>
+        <button data-role="gate" onclick="switchRole('gate')">
+            <span class="nav-icon">🚪</span><span>Gate</span></button>
+        <button data-role="department" onclick="switchRole('department')">
+            <span class="nav-icon">🏢</span><span>Dept</span></button>
+        <button data-role="carrier" onclick="switchRole('carrier')">
+            <span class="nav-icon">🚚</span><span>Carrier</span></button>
     </nav>
+</div>
+
+<!-- ======================= CAMERA MODAL ======================= -->
+<div id="cameraModal">
+    <div class="camera-header">
+        <span class="title">📷 Capture Carrier Image</span>
+        <button onclick="closeCamera()" title="Close">✕</button>
+    </div>
+    <video id="cameraVideo" autoplay playsinline muted></video>
+
+    <div id="capturePreview">
+        <img id="capturedImg" alt="Captured">
+        <div class="capture-actions">
+            <button class="btn btn-outline" onclick="retakePhoto()">↻ Retake</button>
+            <button class="btn btn-primary" onclick="usePhoto()">✓ Use Photo</button>
+        </div>
+    </div>
+
+    <div class="camera-controls" id="cameraControls">
+        <button class="cam-btn" onclick="switchCamera()" title="Switch camera">↻</button>
+        <button class="cam-shutter" onclick="takePhoto()" title="Take photo"></button>
+        <button class="cam-btn" onclick="closeCamera()" title="Cancel">✕</button>
+    </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script type="module">
-    // ============================================================
-    // GATE PASS SYSTEM - CORE LOGIC (CORRECTED)
-    // ============================================================
+// ==================================================================
+// GATE PASS SYSTEM — MAIN LOGIC
+// ==================================================================
+if (!window.FirebaseApp) {
+    document.body.innerHTML =
+      '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#dc2626">' +
+      '❌ Firebase failed. Open DevTools (F12) → Console.</div>';
+    throw new Error('FirebaseApp missing');
+}
+const { db, storage, ref, push, set, onValue, update,
+        storageRef, uploadBytesResumable, getDownloadURL } = window.FirebaseApp;
 
-    // Wait for Firebase to be ready (defensive against slow module load)
-    if (!window.FirebaseApp) {
-        document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#dc2626;">❌ Firebase failed to initialize. Check the browser console (F12) for details.</div>';
-        throw new Error('FirebaseApp not available');
+// ---- State ----
+let currentUser = null;          // { username, role }
+let currentRole = 'gate';
+let allPasses = {};
+let watchId = null;
+let map = null;
+let directionsService = null;
+let directionsRenderer = null;
+let currentCarrierPassId = null;
+
+// Camera state
+let cameraStream = null;
+let cameraFacing = 'environment';
+let currentCapturePassId = null;
+let capturedBlob = null;
+
+// Memory maps (survive re-render)
+const selectedFiles = {};        // passId → Blob
+const selectedPreview = {};      // passId → dataURL
+const openReleaseForms = {};     // passId → { open, officerName }
+
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+// ==================================================================
+// AUTH
+// ==================================================================
+const USERS = {
+    gate:      { password: 'gate123',    label: 'Security Officer' },
+    dept:      { password: 'dept123',    label: 'Department Staff' },
+    carrier:   { password: 'carrier123', label: 'Delivery Person' }
+};
+
+const ROLE_MAP = { gate: 'gate', department: 'department', carrier: 'carrier' };
+
+let loginRole = 'gate';
+
+document.querySelectorAll('#loginRoleTabs button').forEach(b => {
+    b.addEventListener('click', () => {
+        document.querySelectorAll('#loginRoleTabs button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        loginRole = b.dataset.role;
+        $('#loginError').classList.remove('show');
+    });
+});
+
+$('#loginForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const user = $('#loginUser').value.trim().toLowerCase();
+    const pass = $('#loginPass').value;
+    const expectedRole = loginRole;
+
+    // Verify the user exists AND its role matches the tab selected
+    const userRecord = USERS[user];
+    const roleMatches = userRecord && (
+        (expectedRole === 'gate'      && user === 'gate') ||
+        (expectedRole === 'department'&& user === 'dept') ||
+        (expectedRole === 'carrier'   && user === 'carrier')
+    );
+
+    if (!userRecord || userRecord.password !== pass || !roleMatches) {
+        const err = $('#loginError');
+        err.textContent = '❌ Invalid credentials for ' +
+            (expectedRole === 'department' ? 'Department' :
+             expectedRole === 'carrier' ? 'Carrier' : 'Main Gate');
+        err.classList.add('show');
+        return;
     }
 
-    const { db, storage, ref, push, set, onValue, update, storageRef, uploadBytesResumable, getDownloadURL } = window.FirebaseApp;
+    // Success
+    currentUser = { username: user, role: expectedRole, label: userRecord.label };
+    sessionStorage.setItem('gps_user', JSON.stringify(currentUser));
+    enterApp();
+});
 
-    // --- State ---
-    let currentRole = 'gate';
-    let allPasses = {};
-    let watchId = null;
-    let map = null;
-    let directionsService = null;
-    let directionsRenderer = null;
-    let currentCarrierPassId = null;
+function enterApp() {
+    $('#loginScreen').classList.add('hidden');
+    setTimeout(() => {
+        $('#loginScreen').style.display = 'none';
+        $('#app').style.display = 'block';
+    }, 400);
 
-    // ⭐ CRITICAL FIX #1: Store File objects in memory — DOM file inputs get wiped on re-render
-    const selectedFiles = {};
-    // ⭐ CRITICAL FIX #2: Store form state so we can restore it after re-render
-    const openReleaseForms = {};
+    $('#userChip').textContent = currentUser.label;
+    switchRole(currentUser.role);
+    startPassesListener();
+}
 
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => document.querySelectorAll(sel);
+function logout() {
+    if (!confirm('Sign out?')) return;
+    sessionStorage.removeItem('gps_user');
+    currentUser = null;
+    stopLocationTracking();
+    stopCamera();
+    $('#app').style.display = 'none';
+    $('#loginScreen').style.display = 'flex';
+    $('#loginScreen').classList.remove('hidden');
+    $('#loginForm').reset();
+    $('#loginError').classList.remove('show');
+}
 
-    // ============================================================
-    // ROLE SWITCHING
-    // ============================================================
+// Restore session
+(function restoreSession() {
+    const raw = sessionStorage.getItem('gps_user');
+    if (!raw) return;
+    try {
+        currentUser = JSON.parse(raw);
+        // small delay so Firebase module finishes
+        setTimeout(enterApp, 300);
+    } catch (e) { sessionStorage.removeItem('gps_user'); }
+})();
 
-    window.switchRole = function(role) {
-        currentRole = role;
-        $$('#roleSwitcher button').forEach(b => b.classList.toggle('active', b.dataset.role === role));
-        $$('#bottomNav button').forEach((b, i) => {
-            const roles = ['gate', 'department', 'carrier'];
-            b.classList.toggle('active', roles[i] === role);
-        });
-        $$('.panel').forEach(p => p.classList.remove('active'));
-        $(`#panel-${role}`).classList.add('active');
+// ==================================================================
+// ROLE SWITCHING
+// ==================================================================
+window.switchRole = function(role) {
+    // If user is logged in as gate, they can only see gate panel
+    // If admin, allow switching
+    currentRole = role;
 
-        const headers = {
-            gate: { title: 'Main Gate', sub: 'Security Dashboard' },
-            department: { title: 'Department', sub: 'Gate Pass Creation' },
-            carrier: { title: 'Carrier', sub: 'Delivery Tracking' }
-        };
-        $('#headerTitle').textContent = headers[role].title;
-        $('#headerSubtitle').textContent = headers[role].sub;
+    $$('#bottomNav button').forEach(b => {
+        b.classList.toggle('active', b.dataset.role === role);
+    });
+    $$('.panel').forEach(p => p.classList.remove('active'));
+    const panel = $(`#panel-${role}`);
+    if (panel) panel.classList.add('active');
 
-        if (role === 'carrier') {
-            initCarrierMap();
-        } else {
-            stopLocationTracking();
-        }
+    const headers = {
+        gate:       { title: 'Main Gate',  sub: 'Security Dashboard' },
+        department: { title: 'Department', sub: 'Gate Pass Creation' },
+        carrier:    { title: 'Carrier',    sub: 'Delivery Tracking' }
     };
+    $('#headerTitle').textContent = headers[role].title;
+    $('#headerSubtitle').textContent = headers[role].sub;
 
-    // ============================================================
-    // TOAST
-    // ============================================================
-
-    function showToast(msg, type = '') {
-        const toast = $('#toast');
-        toast.textContent = msg;
-        toast.className = 'toast ' + type;
-        setTimeout(() => toast.classList.add('show'), 10);
-        clearTimeout(toast._timer);
-        toast._timer = setTimeout(() => toast.classList.remove('show'), 4000);
+    if (role === 'carrier') {
+        initCarrierMap();
+    } else {
+        stopLocationTracking();
     }
+};
 
-    // ============================================================
-    // FIREBASE LISTENER
-    // ============================================================
+// ==================================================================
+// TOAST
+// ==================================================================
+function showToast(msg, type = '') {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.className = 'toast ' + type;
+    setTimeout(() => t.classList.add('show'), 10);
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ==================================================================
+// FIREBASE LISTENER — Real-time updates
+// ==================================================================
+let passesListenerStarted = false;
+
+function startPassesListener() {
+    if (passesListenerStarted) return;
+    passesListenerStarted = true;
 
     const passesRef = ref(db, 'gate_passes');
-
     onValue(passesRef, (snapshot) => {
         allPasses = snapshot.val() || {};
+        console.log('📥 Data updated. Total passes:', Object.keys(allPasses).length);
         renderAllViews();
     }, (error) => {
-        console.error('❌ Database read error:', error);
-        showToast('❌ Database error: ' + error.message, 'error');
+        console.error('❌ Listener error:', error);
+        showToast('❌ DB error: ' + error.message, 'error');
+    });
+}
+
+// Manual refresh fallback
+window.manualRefresh = async function() {
+    try {
+        const { get, child } = window.FirebaseApp;
+        const snap = await get(child(ref(db), 'gate_passes'));
+        allPasses = snap.val() || {};
+        renderAllViews();
+        showToast('🔄 Refreshed', 'success');
+    } catch (err) {
+        showToast('❌ Refresh failed: ' + err.message, 'error');
+    }
+};
+
+function renderAllViews() {
+    renderGateView();
+    renderDepartmentView();
+    renderCarrierView();
+}
+
+// ==================================================================
+// MAIN GATE VIEW
+// ==================================================================
+function renderGateView() {
+    const pendingList = $('#pendingList');
+    const releasedList = $('#releasedList');
+    if (!pendingList || !releasedList) return;
+
+    // Save current form state
+    document.querySelectorAll('[id^="release-form-"]').forEach(el => {
+        const id = el.id.replace('release-form-', '');
+        const officerInput = document.getElementById(`officer-${id}`);
+        if (!openReleaseForms[id]) openReleaseForms[id] = {};
+        openReleaseForms[id].open = el.style.display === 'block';
+        if (officerInput) openReleaseForms[id].officerName = officerInput.value;
     });
 
-    function renderAllViews() {
-        renderGateView();
-        renderDepartmentView();
-        renderCarrierView();
-    }
+    const pending = [];
+    const released = [];
+    Object.entries(allPasses).forEach(([id, p]) => {
+        if (p.status === 'pending_gate') pending.push({ id, ...p });
+        else if (p.status === 'released' || p.status === 'delivered') released.push({ id, ...p });
+    });
 
-    // ============================================================
-    // MAIN GATE VIEW
-    // ⭐ CRITICAL FIX #3: Preserve form state across re-renders
-    // ============================================================
+    // Sort newest first
+    pending.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    released.sort((a, b) => (b.releasedAt || 0) - (a.releasedAt || 0));
 
-    function renderGateView() {
-        const pendingList = $('#pendingList');
-        const releasedList = $('#releasedList');
-        const pendingCount = $('#pendingCount');
+    $('#pendingCount').textContent = pending.length;
 
-        // Save current form state BEFORE re-rendering
-        document.querySelectorAll('[id^="release-form-"]').forEach(el => {
-            const passId = el.id.replace('release-form-', '');
-            const officerInput = document.getElementById(`officer-${passId}`);
-            const preview = document.getElementById(`preview-${passId}`);
-            openReleaseForms[passId] = {
-                open: el.style.display === 'block',
-                officerName: officerInput ? officerInput.value : '',
-                previewSrc: (preview && preview.src) ? preview.src : ''
-            };
-        });
+    // Pending
+    if (pending.length === 0) {
+        pendingList.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">📭</div>
+                <p>No pending items. Department records will appear here in real-time.</p>
+            </div>`;
+    } else {
+        pendingList.innerHTML = pending.map(p => {
+            const st = openReleaseForms[p.id] || {};
+            const formDisplay = st.open ? 'block' : 'none';
+            const officerValue = st.officerName ? escapeHtml(st.officerName) : '';
+            const previewSrc = selectedPreview[p.id] || '';
+            const previewDisplay = previewSrc ? 'block' : 'none';
 
-        const pending = [];
-        const released = [];
-
-        Object.entries(allPasses).forEach(([id, pass]) => {
-            if (pass.status === 'pending_gate') pending.push({ id, ...pass });
-            else if (pass.status === 'released' || pass.status === 'delivered')
-                released.push({ id, ...pass });
-        });
-
-        pendingCount.textContent = pending.length;
-
-        // Render pending
-        if (pending.length === 0) {
-            pendingList.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">📭</div>
-                    <p>No pending items. Department records will appear here in real-time.</p>
-                </div>`;
-        } else {
-            pendingList.innerHTML = pending.map(p => {
-                const st = openReleaseForms[p.id] || {};
-                const formDisplay = st.open ? 'block' : 'none';
-                const officerValue = st.officerName ? escapeHtml(st.officerName) : '';
-                const previewDisplay = st.previewSrc ? 'block' : 'none';
-                const previewSrc = st.previewSrc || '';
-
-                return `
-                <div class="card" id="gate-card-${p.id}">
-                    <div class="card-header">
-                        <div>
-                            <div class="card-title">${escapeHtml(p.model || 'Unknown Item')}</div>
-                            <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
-                        </div>
-                        <span class="badge badge-pending">Pending</span>
-                    </div>
-
-                    <div class="detail-row"><span class="label">Description</span><span class="value">${escapeHtml(p.description || '--')}</span></div>
-                    <div class="detail-row"><span class="label">From</span><span class="value">${escapeHtml(p.deliveryFrom || '--')}</span></div>
-                    <div class="detail-row"><span class="label">To</span><span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
-                    <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
-                    <div class="detail-row"><span class="label">Mobile</span><span class="value">${escapeHtml(p.mobileNumber || '--')}</span></div>
-                    <div class="detail-row"><span class="label">Date</span><span class="value">${escapeHtml(p.date || '--')}</span></div>
-
-                    <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openReleaseForm('${p.id}')">
-                            🔓 Release Item
-                        </button>
-                    </div>
-
-                    <div id="release-form-${p.id}" style="display:${formDisplay}; margin-top:14px; padding-top:14px; border-top:1px solid var(--gray-100);">
-                        <div class="form-group">
-                            <label>Security Officer Name *</label>
-                            <input type="text" id="officer-${p.id}" placeholder="Officer name" value="${officerValue}">
-                        </div>
-                        <div class="form-group">
-                            <label>Carrier Image (Required) *</label>
-                            <div class="image-upload-area" onclick="document.getElementById('carrier-img-${p.id}').click()">
-                                <span>📷 Tap to capture or upload image</span>
-                                <input type="file" id="carrier-img-${p.id}" accept="image/*"
-                                       onchange="previewImage(this, 'preview-${p.id}', '${p.id}')">
-                            </div>
-                            <img id="preview-${p.id}" class="image-preview" src="${previewSrc}" style="display:${previewDisplay}" alt="Carrier preview">
-                            <div class="upload-progress" id="progress-wrap-${p.id}" style="display:none;">
-                                <div class="bar" id="progress-bar-${p.id}"></div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-primary btn-sm" id="confirm-btn-${p.id}" onclick="confirmRelease('${p.id}')">
-                            ✅ Confirm Release
-                        </button>
-                    </div>
-                </div>
-                `;
-            }).join('');
-        }
-
-        // Render released
-        if (released.length === 0) {
-            releasedList.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">📋</div>
-                    <p>No released items yet.</p>
-                </div>`;
-        } else {
-            releasedList.innerHTML = released.map(p => `
-                <div class="card">
-                    <div class="card-header">
-                        <div>
-                            <div class="card-title">${escapeHtml(p.model || '--')}</div>
-                            <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
-                        </div>
-                        <span class="badge badge-${p.status === 'delivered' ? 'delivered' : 'released'}">
-                            ${p.status === 'delivered' ? 'Delivered' : 'Released'}
-                        </span>
-                    </div>
-                    <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
-                    <div class="detail-row"><span class="label">Officer</span><span class="value">${escapeHtml(p.securityOfficerName || '--')}</span></div>
-                    <div class="detail-row"><span class="label">Released</span><span class="value">${formatTime(p.releasedAt)}</span></div>
-                </div>
-            `).join('');
-        }
-    }
-
-    // ============================================================
-    // DEPARTMENT VIEW
-    // ============================================================
-
-    function renderDepartmentView() {
-        const container = $('#deptRecords');
-        const deptPasses = Object.entries(allPasses)
-            .filter(([, p]) => p.createdByRole === 'department')
-            .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
-
-        if (deptPasses.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">📝</div>
-                    <p>No records created yet. Use the form above to create one.</p>
-                </div>`;
-            return;
-        }
-
-        container.innerHTML = deptPasses.map(([id, p]) => `
-            <div class="card">
+            return `
+            <div class="card" id="gate-card-${p.id}">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">${escapeHtml(p.model || '--')}</div>
-                        <div class="card-subtitle">${escapeHtml(p.serialNumber || '--')}</div>
+                        <div class="card-title">${escapeHtml(p.model || 'Unknown')}</div>
+                        <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
                     </div>
-                    <span class="badge badge-${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+                    <span class="badge badge-pending">Pending</span>
                 </div>
-                <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
-                <div class="detail-row"><span class="label">Destination</span><span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
-                <div class="detail-row"><span class="label">Created</span><span class="value">${formatTime(p.createdAt)}</span></div>
-            </div>
-        `).join('');
+                <div class="detail-row"><span class="label">Description</span>
+                    <span class="value">${escapeHtml(p.description || '--')}</span></div>
+                <div class="detail-row"><span class="label">From</span>
+                    <span class="value">${escapeHtml(p.deliveryFrom || '--')}</span></div>
+                <div class="detail-row"><span class="label">To</span>
+                    <span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
+                <div class="detail-row"><span class="label">Carrier</span>
+                    <span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+                <div class="detail-row"><span class="label">Mobile</span>
+                    <span class="value">${escapeHtml(p.mobileNumber || '--')}</span></div>
+                <div class="detail-row"><span class="label">Date</span>
+                    <span class="value">${escapeHtml(p.date || '--')}</span></div>
+
+                <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="button" class="btn btn-primary btn-sm"
+                        onclick="openReleaseForm('${p.id}')">
+                        🔓 Release Item
+                    </button>
+                </div>
+
+                <div id="release-form-${p.id}" style="display:${formDisplay};
+                    margin-top:14px;padding-top:14px;border-top:1px solid var(--g100)">
+                    <div class="form-group">
+                        <label>Security Officer Name *</label>
+                        <input type="text" id="officer-${p.id}"
+                            placeholder="Officer name" value="${officerValue}">
+                    </div>
+                    <div class="form-group">
+                        <label>Carrier Image (Required) *</label>
+                        <div class="camera-capture-btn"
+                             onclick="openCamera('${p.id}')">
+                            <div class="icon">📷</div>
+                            <span>${previewSrc ? 'Tap to retake photo' : 'Tap to capture photo'}</span>
+                        </div>
+                        <img id="preview-${p.id}" class="captured-preview"
+                             src="${previewSrc}" style="display:${previewDisplay}"
+                             alt="Carrier">
+                        <div class="upload-progress" id="progress-wrap-${p.id}"
+                             style="display:none">
+                            <div class="bar" id="progress-bar-${p.id}"></div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm"
+                        id="confirm-btn-${p.id}"
+                        onclick="confirmRelease('${p.id}')">
+                        ✅ Confirm Release
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
     }
 
-    $('#deptForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const data = {
-            serialNumber: $('#deptSN').value.trim(),
-            model: $('#deptModel').value.trim(),
-            description: $('#deptDescription').value.trim(),
-            deliveryFrom: $('#deptFrom').value.trim(),
-            deliveryTo: $('#deptTo').value.trim(),
-            carrierName: $('#deptCarrier').value.trim(),
-            mobileNumber: $('#deptMobile').value.trim(),
-            date: $('#deptDate').value,
-            status: 'pending_gate',
-            createdByRole: 'department',
-            createdAt: Date.now(),
-            securityOfficerName: '',
-            carrierImageUrl: '',
-            destinationAddress: $('#deptTo').value.trim()
-        };
-
-        try {
-            const newRef = push(passesRef);
-            await set(newRef, data);
-            showToast('✅ Record sent to Main Gate!', 'success');
-            $('#deptForm').reset();
-            $('#deptDate').valueAsDate = new Date();
-        } catch (err) {
-            console.error('❌ Dept submit error:', err);
-            showToast('❌ Error: ' + err.message, 'error');
-        }
-    });
-
-    $('#deptDate').valueAsDate = new Date();
-
-    // ============================================================
-    // CARRIER VIEW
-    // ============================================================
-
-    function renderCarrierView() {
-        const container = $('#carrierItems');
-        const carrierPasses = Object.entries(allPasses)
-            .filter(([, p]) => p.status === 'released' || p.status === 'delivered')
-            .sort((a, b) => (b[1].releasedAt || 0) - (a[1].releasedAt || 0));
-
-        if (carrierPasses.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">📦</div>
-                    <p>No items assigned. Items released from Main Gate will appear here.</p>
-                </div>`;
-            return;
-        }
-
-        container.innerHTML = carrierPasses.map(([id, p]) => `
+    // Released
+    if (released.length === 0) {
+        releasedList.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">📋</div>
+                <p>No released items yet.</p>
+            </div>`;
+    } else {
+        releasedList.innerHTML = released.map(p => `
             <div class="card">
                 <div class="card-header">
                     <div>
                         <div class="card-title">${escapeHtml(p.model || '--')}</div>
                         <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
                     </div>
-                    <span class="badge badge-${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+                    <span class="badge badge-${p.status === 'delivered' ? 'delivered' : 'released'}">
+                        ${p.status === 'delivered' ? 'Delivered' : 'Released'}
+                    </span>
                 </div>
-                <div class="detail-row"><span class="label">Destination</span><span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
-                <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
-                <div class="detail-row"><span class="label">Released</span><span class="value">${formatTime(p.releasedAt)}</span></div>
-                ${p.status === 'released' ? `
-                    <div style="margin-top:12px;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="trackDelivery('${id}')">
-                            📍 Start Tracking This Delivery
-                        </button>
-                    </div>
-                ` : ''}
+                <div class="detail-row"><span class="label">Carrier</span>
+                    <span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+                <div class="detail-row"><span class="label">Officer</span>
+                    <span class="value">${escapeHtml(p.securityOfficerName || '--')}</span></div>
+                <div class="detail-row"><span class="label">Released</span>
+                    <span class="value">${formatTime(p.releasedAt)}</span></div>
+                ${p.carrierImageUrl ? `
+                    <img src="${p.carrierImageUrl}" alt="Carrier"
+                         style="width:100%;max-height:160px;object-fit:cover;
+                         border-radius:8px;margin-top:10px">` : ''}
             </div>
         `).join('');
     }
+}
 
-    // ============================================================
-    // IMAGE PREVIEW
-    // ⭐ CRITICAL FIX #4: Store File object in memory (DOM input gets wiped)
-    // ============================================================
+// ==================================================================
+// DEPARTMENT VIEW
+// ==================================================================
+function renderDepartmentView() {
+    const container = $('#deptRecords');
+    if (!container) return;
 
-    window.previewImage = function(input, previewId, passId) {
-        const preview = document.getElementById(previewId);
-        if (input.files && input.files[0]) {
-            // Store the actual File object outside the DOM
-            selectedFiles[passId] = input.files[0];
+    const deptPasses = Object.entries(allPasses)
+        .filter(([, p]) => p.createdByRole === 'department')
+        .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                // Remember preview src for re-render restoration
-                if (!openReleaseForms[passId]) openReleaseForms[passId] = { open: true };
-                openReleaseForms[passId].previewSrc = e.target.result;
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
-    };
-
-    // ============================================================
-    // OPEN RELEASE FORM
-    // ============================================================
-
-    window.openReleaseForm = function(passId) {
-        const form = document.getElementById(`release-form-${passId}`);
-        if (!form) return;
-        const isOpening = form.style.display === 'none';
-        form.style.display = isOpening ? 'block' : 'none';
-        if (!openReleaseForms[passId]) openReleaseForms[passId] = {};
-        openReleaseForms[passId].open = isOpening;
-    };
-
-    // ============================================================
-    // CONFIRM RELEASE
-    // ⭐ CRITICAL FIX #5: Read File from `selectedFiles`, not from DOM input
-    // ⭐ CRITICAL FIX #6: Use alert() for errors so they're never missed
-    // ============================================================
-
-    window.confirmRelease = async function(passId) {
-        console.log('🔵 confirmRelease called for passId:', passId);
-
-        const officerInput = document.getElementById(`officer-${passId}`);
-        const officerName = officerInput ? officerInput.value.trim() : '';
-        const file = selectedFiles[passId];
-
-        console.log('🔵 Officer name:', officerName);
-        console.log('🔵 File in memory:', file);
-
-        if (!officerName) {
-            showToast('⚠️ Please enter security officer name', 'error');
-            if (officerInput) officerInput.focus();
-            return;
-        }
-
-        if (!file) {
-            showToast('⚠️ Please capture carrier image', 'error');
-            return;
-        }
-
-        // Disable button + show progress
-        const confirmBtn = document.getElementById(`confirm-btn-${passId}`);
-        const progressWrap = document.getElementById(`progress-wrap-${passId}`);
-        const progressBar = document.getElementById(`progress-bar-${passId}`);
-
-        if (confirmBtn) {
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<span class="spinner"></span> Uploading...';
-        }
-        if (progressWrap) progressWrap.style.display = 'block';
-
-        try {
-            const fileRef = storageRef(storage, `carrier_images/${passId}_${Date.now()}.jpg`);
-            console.log('🔵 Uploading to:', fileRef.fullPath);
-            const uploadTask = uploadBytesResumable(fileRef, file);
-
-            uploadTask.on('state_changed',
-                (snap) => {
-                    const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-                    if (progressBar) progressBar.style.width = pct + '%';
-                    console.log(`🔵 Upload: ${pct}%`);
-                },
-                (err) => {
-                    console.error('❌ Upload error:', err);
-                    alert('❌ Image upload failed!\n\nCode: ' + err.code + '\n' + err.message +
-                          '\n\n👉 Most likely: Firebase Storage is not enabled OR Storage rules block writes.' +
-                          '\n\nFix: Firebase Console → Storage → Rules → allow write: if true;');
-                    if (confirmBtn) {
-                        confirmBtn.disabled = false;
-                        confirmBtn.innerHTML = '✅ Confirm Release';
-                    }
-                    if (progressWrap) progressWrap.style.display = 'none';
-                },
-                async () => {
-                    try {
-                        console.log('✅ Upload complete');
-                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        console.log('🔵 downloadURL:', downloadURL);
-
-                        await update(ref(db, `gate_passes/${passId}`), {
-                            status: 'released',
-                            securityOfficerName: officerName,
-                            carrierImageUrl: downloadURL,
-                            releasedAt: Date.now()
-                        });
-
-                        console.log('✅ Database updated');
-                        delete selectedFiles[passId];
-                        delete openReleaseForms[passId];
-                        showToast('✅ Item released successfully!', 'success');
-                    } catch (err) {
-                        console.error('❌ DB update error:', err);
-                        alert('❌ Failed to save release record:\n' + err.message);
-                        if (confirmBtn) {
-                            confirmBtn.disabled = false;
-                            confirmBtn.innerHTML = '✅ Confirm Release';
-                        }
-                        if (progressWrap) progressWrap.style.display = 'none';
-                    }
-                }
-            );
-        } catch (err) {
-            console.error('❌ confirmRelease exception:', err);
-            alert('❌ Error: ' + err.message);
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '✅ Confirm Release';
-            }
-        }
-    };
-
-    // ============================================================
-    // GOOGLE MAPS
-    // ============================================================
-
-    function initCarrierMap() {
-        if (map) return;
-        if (typeof google === 'undefined') {
-            console.warn('Google Maps not loaded');
-            return;
-        }
-
-        map = new google.maps.Map(document.getElementById('map'), {
-            zoom: 14,
-            center: { lat: 6.9271, lng: 79.8612 },
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            styles: [
-                { elementType: "geometry", stylers: [{ color: "#f8fafc" }] },
-                { elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
-                { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-                { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-                { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#e2e8f0" }] },
-                { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
-                { featureType: "poi", elementType: "geometry", stylers: [{ color: "#f0fdf4" }] }
-            ]
-        });
-
-        directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({
-            map: map,
-            suppressMarkers: false,
-            polylineOptions: {
-                strokeColor: '#0d9488',
-                strokeWeight: 6,
-                strokeOpacity: 0.9
-            }
-        });
+    if (deptPasses.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">📝</div>
+                <p>No records yet. Use the form above to create one.</p>
+            </div>`;
+        return;
     }
 
-    // ============================================================
-    // REAL-TIME LOCATION TRACKING
-    // ============================================================
+    container.innerHTML = deptPasses.map(([id, p]) => `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">${escapeHtml(p.model || '--')}</div>
+                    <div class="card-subtitle">${escapeHtml(p.serialNumber || '--')}</div>
+                </div>
+                <span class="badge badge-${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+            </div>
+            <div class="detail-row"><span class="label">Carrier</span>
+                <span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+            <div class="detail-row"><span class="label">Destination</span>
+                <span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
+            <div class="detail-row"><span class="label">Created</span>
+                <span class="value">${formatTime(p.createdAt)}</span></div>
+        </div>
+    `).join('');
+}
 
-    window.trackDelivery = function(passId) {
-        currentCarrierPassId = passId;
-        $('#carrierMapSection').style.display = 'block';
+// Department submit
+document.addEventListener('submit', (e) => {
+    if (e.target.id !== 'deptForm') return;
+});
 
-        if (!map) initCarrierMap();
+$('#deptForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('#deptSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending...';
 
-        if (watchId) navigator.geolocation.clearWatch(watchId);
+    const data = {
+        serialNumber: $('#deptSN').value.trim(),
+        model:        $('#deptModel').value.trim(),
+        description:  $('#deptDescription').value.trim(),
+        deliveryFrom: $('#deptFrom').value.trim(),
+        deliveryTo:   $('#deptTo').value.trim(),
+        carrierName:  $('#deptCarrier').value.trim(),
+        mobileNumber: $('#deptMobile').value.trim(),
+        date:         $('#deptDate').value,
+        status:       'pending_gate',
+        createdByRole:'department',
+        createdAt:    Date.now(),
+        securityOfficerName: '',
+        carrierImageUrl: '',
+        destinationAddress: $('#deptTo').value.trim()
+    };
 
-        watchId = navigator.geolocation.watchPosition(
-            (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
+    try {
+        const newRef = push(ref(db, 'gate_passes'));
+        await set(newRef, data);
+        console.log('✅ Dept record saved:', newRef.key);
+        showToast('✅ Record sent to Main Gate!', 'success');
+        $('#deptForm').reset();
+        $('#deptDate').valueAsDate = new Date();
 
-                $('#locationStatus').textContent = `📍 GPS Active — ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-                $('#lastUpdate').textContent = new Date().toLocaleTimeString();
+        // Force refresh (in case listener lags)
+        setTimeout(manualRefresh, 400);
+    } catch (err) {
+        console.error('❌ Dept submit error:', err);
+        showToast('❌ ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '📤 Send to Main Gate';
+    }
+});
 
-                const userPos = { lat, lng };
-                if (map) map.setCenter(userPos);
+// Set date on load
+document.addEventListener('DOMContentLoaded', () => {
+    const d = $('#deptDate');
+    if (d) d.valueAsDate = new Date();
+});
+if ($('#deptDate')) $('#deptDate').valueAsDate = new Date();
 
-                if (window.userMarker) window.userMarker.setMap(null);
-                if (map) {
-                    window.userMarker = new google.maps.Marker({
-                        position: userPos,
-                        map: map,
-                        title: 'Your Location',
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 12,
-                            fillColor: '#0d9488',
-                            fillOpacity: 1,
-                            strokeColor: '#ffffff',
-                            strokeWeight: 3
-                        },
-                        zIndex: 999
+// ==================================================================
+// CARRIER VIEW
+// ==================================================================
+function renderCarrierView() {
+    const container = $('#carrierItems');
+    if (!container) return;
+
+    const items = Object.entries(allPasses)
+        .filter(([, p]) => p.status === 'released' || p.status === 'delivered')
+        .sort((a, b) => (b[1].releasedAt || 0) - (a[1].releasedAt || 0));
+
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">📦</div>
+                <p>No items assigned yet.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = items.map(([id, p]) => `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">${escapeHtml(p.model || '--')}</div>
+                    <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
+                </div>
+                <span class="badge badge-${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+            </div>
+            <div class="detail-row"><span class="label">Destination</span>
+                <span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
+            <div class="detail-row"><span class="label">Carrier</span>
+                <span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+            <div class="detail-row"><span class="label">Released</span>
+                <span class="value">${formatTime(p.releasedAt)}</span></div>
+            ${p.status === 'released' ? `
+                <div style="margin-top:12px">
+                    <button type="button" class="btn btn-primary btn-sm"
+                        onclick="trackDelivery('${id}')">
+                        📍 Track This Delivery
+                    </button>
+                </div>` : ''}
+        </div>
+    `).join('');
+}
+
+// ==================================================================
+// OPEN / CLOSE RELEASE FORM
+// ==================================================================
+window.openReleaseForm = function(passId) {
+    const form = document.getElementById(`release-form-${passId}`);
+    if (!form) return;
+    const opening = form.style.display === 'none';
+    form.style.display = opening ? 'block' : 'none';
+    if (!openReleaseForms[passId]) openReleaseForms[passId] = {};
+    openReleaseForms[passId].open = opening;
+};
+
+// ==================================================================
+// CAMERA — Real-time with getUserMedia
+// ==================================================================
+window.openCamera = async function(passId) {
+    currentCapturePassId = passId;
+    capturedBlob = null;
+
+    const modal = $('#cameraModal');
+    const video = $('#cameraVideo');
+    const preview = $('#capturePreview');
+    const controls = $('#cameraControls');
+
+    modal.classList.add('show');
+    preview.classList.remove('show');
+    controls.style.display = 'flex';
+
+    try {
+        // Try back camera first on mobile
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: cameraFacing },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+        video.srcObject = cameraStream;
+        await video.play().catch(() => {});
+        console.log('✅ Camera started. Facing:', cameraFacing);
+    } catch (err) {
+        console.error('❌ Camera error:', err);
+        let msg = 'Camera failed: ';
+        if (err.name === 'NotAllowedError')
+            msg += 'Permission denied. Allow camera in browser settings.';
+        else if (err.name === 'NotFoundError')
+            msg += 'No camera found on this device.';
+        else if (err.name === 'NotReadableError')
+            msg += 'Camera is in use by another app.';
+        else
+            msg += err.message;
+
+        alert('❌ ' + msg +
+              '\n\nNote: Camera requires HTTPS or localhost.');
+        closeCamera();
+    }
+};
+
+window.closeCamera = function() {
+    stopCamera();
+    $('#cameraModal').classList.remove('show');
+    $('#capturePreview').classList.remove('show');
+    currentCapturePassId = null;
+    capturedBlob = null;
+};
+
+function stopCamera() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+        console.log('🛑 Camera stopped');
+    }
+}
+
+window.takePhoto = function() {
+    const video = $('#cameraVideo');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+
+    canvas.toBlob(blob => {
+        capturedBlob = blob;
+        const url = URL.createObjectURL(blob);
+        $('#capturedImg').src = url;
+        $('#capturePreview').classList.add('show');
+        $('#cameraControls').style.display = 'none';
+        console.log('📸 Photo captured, size:', blob.size, 'bytes');
+    }, 'image/jpeg', 0.85);
+};
+
+window.retakePhoto = function() {
+    capturedBlob = null;
+    $('#capturePreview').classList.remove('show');
+    $('#cameraControls').style.display = 'flex';
+};
+
+window.usePhoto = function() {
+    if (!capturedBlob || !currentCapturePassId) return;
+
+    const passId = currentCapturePassId;
+
+    // Store blob in memory
+    selectedFiles[passId] = capturedBlob;
+
+    // Store preview dataURL for re-render survival
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        selectedPreview[passId] = e.target.result;
+
+        // Update the visible preview
+        const preview = document.getElementById(`preview-${passId}`);
+        if (preview) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+
+        // Update the "tap to retake" label
+        const btn = document.querySelector(
+            `#release-form-${passId} .camera-capture-btn span`);
+        if (btn) btn.textContent = 'Tap to retake photo';
+
+        showToast('📸 Photo captured — tap Confirm to release', 'success');
+    };
+    reader.readAsDataURL(capturedBlob);
+
+    closeCamera();
+};
+
+window.switchCamera = async function() {
+    cameraFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    stopCamera();
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: cameraFacing } },
+            audio: false
+        });
+        $('#cameraVideo').srcObject = cameraStream;
+        await $('#cameraVideo').play().catch(() => {});
+    } catch (err) {
+        console.error('Switch camera error:', err);
+        showToast('⚠️ Cannot switch camera', 'error');
+        cameraFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    }
+};
+
+// ==================================================================
+// CONFIRM RELEASE
+// ==================================================================
+window.confirmRelease = async function(passId) {
+    console.log('🔵 confirmRelease:', passId);
+
+    const officerInput = document.getElementById(`officer-${passId}`);
+    const officerName = officerInput ? officerInput.value.trim() : '';
+    const blob = selectedFiles[passId];
+
+    console.log('🔵 Officer:', officerName);
+    console.log('🔵 Blob:', blob ? blob.size + ' bytes' : 'none');
+
+    if (!officerName) {
+        showToast('⚠️ Enter officer name', 'error');
+        officerInput?.focus();
+        return;
+    }
+    if (!blob) {
+        showToast('⚠️ Capture carrier photo first', 'error');
+        return;
+    }
+
+    const btn = document.getElementById(`confirm-btn-${passId}`);
+    const pWrap = document.getElementById(`progress-wrap-${passId}`);
+    const pBar = document.getElementById(`progress-bar-${passId}`);
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Uploading...'; }
+    if (pWrap) pWrap.style.display = 'block';
+
+    try {
+        const file = new File([blob], `${passId}.jpg`, { type: 'image/jpeg' });
+        const fileRef = storageRef(storage, `carrier_images/${passId}_${Date.now()}.jpg`);
+        console.log('🔵 Uploading...');
+        const task = uploadBytesResumable(fileRef, file);
+
+        task.on('state_changed',
+            (snap) => {
+                const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+                if (pBar) pBar.style.width = pct + '%';
+            },
+            (err) => {
+                console.error('❌ Upload error:', err);
+                alert('❌ Image upload failed:\n\nCode: ' + err.code +
+                      '\n' + err.message +
+                      '\n\n👉 Enable Firebase Storage and set rules:\n' +
+                      'Storage → Rules → allow write: if true;');
+                if (btn) { btn.disabled = false; btn.innerHTML = '✅ Confirm Release'; }
+                if (pWrap) pWrap.style.display = 'none';
+            },
+            async () => {
+                try {
+                    const url = await getDownloadURL(task.snapshot.ref);
+                    console.log('✅ Uploaded:', url);
+
+                    await update(ref(db, `gate_passes/${passId}`), {
+                        status: 'released',
+                        securityOfficerName: officerName,
+                        carrierImageUrl: url,
+                        releasedAt: Date.now()
                     });
+
+                    console.log('✅ DB updated');
+
+                    // Cleanup memory
+                    delete selectedFiles[passId];
+                    delete selectedPreview[passId];
+                    delete openReleaseForms[passId];
+
+                    showToast('✅ Item released!', 'success');
+
+                    // Force refresh in case listener lags
+                    setTimeout(manualRefresh, 300);
+                } catch (err) {
+                    console.error('❌ Post-upload error:', err);
+                    alert('❌ Save failed:\n' + err.message);
+                    if (btn) { btn.disabled = false; btn.innerHTML = '✅ Confirm Release'; }
+                    if (pWrap) pWrap.style.display = 'none';
                 }
-
-                const locRef = ref(db, `live_locations/${currentCarrierPassId}`);
-                set(locRef, {
-                    lat: lat,
-                    lng: lng,
-                    timestamp: Date.now(),
-                    accuracy: position.coords.accuracy
-                }).catch(err => console.warn('Location save error:', err));
-
-                updateRoute(userPos);
-            },
-            (error) => {
-                $('#locationStatus').textContent = `⚠️ GPS Error: ${error.message}`;
-            },
-            {
-                enableHighAccuracy: true,
-                maximumAge: 5000,
-                timeout: 15000
             }
         );
-    };
-
-    async function updateRoute(origin) {
-        if (!currentCarrierPassId || !directionsService) return;
-        const pass = allPasses[currentCarrierPassId];
-        if (!pass) return;
-
-        const destination = pass.destinationAddress || pass.deliveryTo;
-        if (!destination) return;
-
-        try {
-            directionsService.route({
-                origin: origin,
-                destination: destination,
-                travelMode: google.maps.TravelMode.DRIVING,
-                drivingOptions: {
-                    departureTime: new Date(),
-                    trafficModel: 'bestguess'
-                }
-            }, (result, status) => {
-                if (status === 'OK') {
-                    directionsRenderer.setDirections(result);
-                    const route = result.routes[0];
-                    let totalDistance = 0, totalDuration = 0;
-                    route.legs.forEach(leg => {
-                        totalDistance += leg.distance.value;
-                        totalDuration += leg.duration.value;
-                    });
-                    $('#distanceInfo').textContent =
-                        totalDistance > 1000
-                            ? (totalDistance / 1000).toFixed(1) + ' km'
-                            : totalDistance + ' m';
-                    $('#etaInfo').textContent = Math.round(totalDuration / 60) + ' min';
-                } else {
-                    $('#distanceInfo').textContent = 'Route unavailable (' + status + ')';
-                }
-            });
-        } catch (err) {
-            console.error('Route error:', err);
-        }
+    } catch (err) {
+        console.error('❌ confirmRelease:', err);
+        alert('❌ ' + err.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = '✅ Confirm Release'; }
     }
+};
 
-    function stopLocationTracking() {
-        if (watchId) {
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-        }
+// ==================================================================
+// GOOGLE MAPS + TRACKING
+// ==================================================================
+function initCarrierMap() {
+    if (map) return;
+    if (typeof google === 'undefined') {
+        console.warn('Google Maps not loaded yet');
+        return;
     }
+    const el = document.getElementById('map');
+    if (!el) return;
 
-    // ============================================================
-    // UTILITIES
-    // ============================================================
-
-    function escapeHtml(str) {
-        if (str === undefined || str === null) return '';
-        const div = document.createElement('div');
-        div.textContent = String(str);
-        return div.innerHTML;
-    }
-
-    function formatTime(ts) {
-        if (!ts) return '--';
-        return new Date(ts).toLocaleString('en-LK', {
-            hour: '2-digit', minute: '2-digit',
-            day: '2-digit', month: 'short'
-        });
-    }
-
-    function statusBadge(status) {
-        return { pending_gate: 'pending', released: 'released', delivered: 'delivered' }[status] || 'pending';
-    }
-
-    function statusLabel(status) {
-        return { pending_gate: 'Pending', released: 'Released', delivered: 'Delivered' }[status] || status;
-    }
-
-    // Global error catcher — surfaces silent bugs
-    window.addEventListener('error', (e) => {
-        console.error('❌ Global error:', e.error || e.message);
-    });
-    window.addEventListener('unhandledrejection', (e) => {
-        console.error('❌ Unhandled promise rejection:', e.reason);
+    map = new google.maps.Map(el, {
+        zoom: 14,
+        center: { lat: 6.9271, lng: 79.8612 },
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        styles: [
+            { elementType: "geometry", stylers: [{ color: "#f8fafc" }] },
+            { elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
+            { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+            { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+            { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#e2e8f0" }] },
+            { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
+            { featureType: "poi", elementType: "geometry", stylers: [{ color: "#f0fdf4" }] }
+        ]
     });
 
-    console.log('✅ Gate Pass System loaded.');
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map,
+        suppressMarkers: false,
+        polylineOptions: { strokeColor: '#0d9488', strokeWeight: 6, strokeOpacity: 0.9 }
+    });
+}
+
+window.trackDelivery = function(passId) {
+    currentCarrierPassId = passId;
+    $('#carrierMapSection').style.display = 'block';
+
+    if (!map) initCarrierMap();
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+
+    watchId = navigator.geolocation.watchPosition(
+        (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            $('#locationStatus').textContent =
+                `📍 GPS Active — ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            $('#lastUpdate').textContent = new Date().toLocaleTimeString();
+
+            const pos = { lat, lng };
+            if (map) map.setCenter(pos);
+
+            if (window.userMarker) window.userMarker.setMap(null);
+            if (map) {
+                window.userMarker = new google.maps.Marker({
+                    position: pos, map: map, title: 'You',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12, fillColor: '#0d9488', fillOpacity: 1,
+                        strokeColor: '#ffffff', strokeWeight: 3
+                    },
+                    zIndex: 999
+                });
+            }
+
+            set(ref(db, `live_locations/${currentCarrierPassId}`), {
+                lat, lng, timestamp: Date.now(),
+                accuracy: position.coords.accuracy
+            }).catch(err => console.warn('Loc save err:', err));
+
+            updateRoute(pos);
+        },
+        (error) => {
+            $('#locationStatus').textContent = `⚠️ GPS: ${error.message}`;
+        },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+};
+
+async function updateRoute(origin) {
+    if (!currentCarrierPassId || !directionsService) return;
+    const pass = allPasses[currentCarrierPassId];
+    if (!pass) return;
+    const dest = pass.destinationAddress || pass.deliveryTo;
+    if (!dest) return;
+
+    directionsService.route({
+        origin, destination: dest,
+        travelMode: google.maps.TravelMode.DRIVING,
+        drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' }
+    }, (result, status) => {
+        if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+            let dist = 0, dur = 0;
+            result.routes[0].legs.forEach(l => { dist += l.distance.value; dur += l.duration.value; });
+            $('#distanceInfo').textContent =
+                dist > 1000 ? (dist / 1000).toFixed(1) + ' km' : dist + ' m';
+            $('#etaInfo').textContent = Math.round(dur / 60) + ' min';
+        } else {
+            $('#distanceInfo').textContent = 'Unavailable (' + status + ')';
+        }
+    });
+}
+
+function stopLocationTracking() {
+    if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+}
+
+// ==================================================================
+// UTILITIES
+// ==================================================================
+function escapeHtml(str) {
+    if (str === undefined || str === null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(str);
+    return d.innerHTML;
+}
+function formatTime(ts) {
+    if (!ts) return '--';
+    return new Date(ts).toLocaleString('en-LK', {
+        hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short'
+    });
+}
+function statusBadge(s) {
+    return { pending_gate:'pending', released:'released', delivered:'delivered' }[s] || 'pending';
+}
+function statusLabel(s) {
+    return { pending_gate:'Pending', released:'Released', delivered:'Delivered' }[s] || s;
+}
+
+// Global error handlers
+window.addEventListener('error', e => console.error('❌', e.error || e.message));
+window.addEventListener('unhandledrejection', e => console.error('❌ Promise:', e.reason));
+
+console.log('✅ Gate Pass System ready');
 </script>
 </body>
 </html>
