@@ -236,6 +236,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
     display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- RECEIVED CONFIRMATION MODAL ---------- */
+.modal-overlay{position:fixed;inset:0;z-index:5500;background:rgba(15,23,42,.55);
+    backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-sheet{background:#fff;width:100%;max-width:480px;border-radius:24px 24px 0 0;
+    max-height:92vh;overflow-y:auto;
+    padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+    animation:sheetUp .32s cubic-bezier(.4,0,.2,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+    margin-bottom:16px}
+.modal-sheet h3{font-size:1.05rem;font-weight:700;color:var(--g800)}
+.modal-sheet .modal-sub{font-size:.76rem;color:var(--g400);margin-top:3px}
+.modal-close{background:var(--g50);border:none;width:32px;height:32px;border-radius:50%;
+    font-size:.95rem;color:var(--g600);cursor:pointer;flex:0 0 auto;font-family:inherit}
+
+.recap{background:var(--g50);border-radius:12px;padding:10px 14px;margin-bottom:16px}
+.recap .detail-row{border-bottom:1px solid var(--g100)}
+
+.sig-wrap{border:1.5px dashed var(--g200);border-radius:12px;background:var(--g50);
+    position:relative;overflow:hidden}
+.sig-wrap canvas{display:block;width:100%;height:150px;touch-action:none;
+    cursor:crosshair}
+.sig-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:.8rem;color:var(--g400);pointer-events:none;font-weight:500}
+.sig-clear{position:absolute;top:8px;right:8px;background:#fff;border:1px solid var(--g200);
+    border-radius:8px;font-size:.68rem;font-weight:700;padding:4px 10px;cursor:pointer;
+    font-family:inherit;color:var(--g600)}
+.sig-clear:active{transform:scale(.95)}
+
+.photo-thumb{width:100%;max-height:170px;object-fit:cover;border-radius:10px;
+    margin-top:10px;display:none;border:2px solid var(--green)}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.modal-actions .btn{flex:1}
 </style>
 </head>
 <body>
@@ -396,7 +431,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 <!-- ===================== CAMERA MODAL ===================== -->
 <div id="cameraModal">
     <div class="camera-header">
-        <span class="title">📷 Capture Carrier Image</span>
+        <span class="title" id="cameraTitle">📷 Capture Image</span>
         <button onclick="closeCamera()" title="Close">✕</button>
     </div>
     <video id="cameraVideo" autoplay playsinline muted></video>
@@ -413,6 +448,66 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         <button class="cam-btn" onclick="switchCamera()" title="Switch camera">↻</button>
         <button class="cam-shutter" onclick="takePhoto()" title="Take photo"></button>
         <button class="cam-btn" onclick="closeCamera()" title="Cancel">✕</button>
+    </div>
+</div>
+
+<!-- ===================== RECEIVED CONFIRMATION MODAL ===================== -->
+<div class="modal-overlay" id="receiveModal">
+    <div class="modal-sheet">
+        <div class="modal-head">
+            <div>
+                <h3>✅ Received Confirmation</h3>
+                <p class="modal-sub" id="receiveSub">Confirm the item was handed over</p>
+            </div>
+            <button class="modal-close" onclick="closeReceiveModal()" title="Close">✕</button>
+        </div>
+
+        <div class="recap">
+            <div class="detail-row"><span class="label">Item</span>
+                <span class="value" id="recvItem">--</span></div>
+            <div class="detail-row"><span class="label">SN</span>
+                <span class="value" id="recvSN">--</span></div>
+            <div class="detail-row"><span class="label">Destination</span>
+                <span class="value" id="recvDest">--</span></div>
+        </div>
+
+        <div class="form-group">
+            <label>Received By (Full Name) *</label>
+            <input type="text" id="recvName" placeholder="Person who received the item">
+        </div>
+        <div class="form-group">
+            <label>Receiver Mobile</label>
+            <input type="tel" id="recvMobile" placeholder="+94 77 123 4567">
+        </div>
+        <div class="form-group">
+            <label>Delivery Note</label>
+            <textarea id="recvNote" placeholder="Item condition, remarks..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Receiver Signature *</label>
+            <div class="sig-wrap">
+                <canvas id="sigCanvas"></canvas>
+                <div class="sig-hint" id="sigHint">✍️ Sign here</div>
+                <button type="button" class="sig-clear" onclick="clearSignature()">Clear</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Delivery Photo (Optional)</label>
+            <div class="camera-capture-btn" onclick="captureDeliveryPhoto()">
+                <div class="icon">📷</div>
+                <span id="deliveryPhotoLabel">Tap to capture delivery photo</span>
+            </div>
+            <img id="deliveryPreview" class="photo-thumb" alt="Delivery">
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeReceiveModal()">Cancel</button>
+            <button class="btn btn-primary" id="recvConfirmBtn" onclick="confirmReceived()">
+                ✅ Confirm Received
+            </button>
+        </div>
     </div>
 </div>
 
@@ -447,6 +542,14 @@ let cameraStream = null;
 let cameraFacing = 'environment';
 let currentCapturePassId = null;
 let capturedBlob = null;
+let cameraMode = 'release';          // 'release' | 'delivery'
+
+// Received confirmation
+let currentReceivePassId = null;
+let deliveryPhotoData = null;
+let sigCtx = null;
+let sigDirty = false;
+let sigBound = false;
 
 // Memory maps (survive re-renders)
 const selectedPreview = {};
@@ -697,7 +800,7 @@ function renderGateView() {
                     <div class="form-group">
                         <label>Carrier Image (Required) *</label>
                         <div class="camera-capture-btn"
-                             onclick="openCamera('${p.id}')">
+                             onclick="openCamera('${p.id}','release')">
                             <div class="icon">📷</div>
                             <span>${previewSrc ? 'Tap to retake photo' : 'Tap to capture photo'}</span>
                         </div>
@@ -739,6 +842,24 @@ function renderGateView() {
                     <span class="value">${escapeHtml(p.securityOfficerName || '--')}</span></div>
                 <div class="detail-row"><span class="label">Released</span>
                     <span class="value">${formatTime(p.releasedAt)}</span></div>
+
+                ${p.status === 'delivered' ? `
+                    <div class="detail-row"><span class="label">Received By</span>
+                        <span class="value">${escapeHtml(p.receivedByName || '--')}</span></div>
+                    <div class="detail-row"><span class="label">Delivered</span>
+                        <span class="value">${formatTime(p.deliveredAt)}</span></div>
+                    ${p.receiverSignature ? `
+                        <div style="font-size:.72rem;color:var(--g400);margin-top:10px">Receiver signature</div>
+                        <img src="${p.receiverSignature}" alt="Signature"
+                             style="width:100%;background:#f8fafc;border:1px solid var(--g100);
+                             border-radius:8px;margin-top:4px">` : ''}
+                    ${p.deliveryPhotoUrl ? `
+                        <div style="font-size:.72rem;color:var(--g400);margin-top:10px">Delivery photo</div>
+                        <img src="${p.deliveryPhotoUrl}" alt="Delivery"
+                             style="width:100%;max-height:160px;object-fit:cover;
+                             border-radius:8px;margin-top:4px">` : ''}
+                ` : ''}
+
                 ${p.carrierImageUrl ? `
                     <img src="${p.carrierImageUrl}" alt="Carrier"
                          style="width:100%;max-height:160px;object-fit:cover;
@@ -783,6 +904,11 @@ function renderDepartmentView() {
                 <span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
             <div class="detail-row"><span class="label">Created</span>
                 <span class="value">${formatTime(p.createdAt)}</span></div>
+            ${p.status === 'delivered' ? `
+            <div class="detail-row"><span class="label">Received By</span>
+                <span class="value">${escapeHtml(p.receivedByName || '--')}</span></div>
+            <div class="detail-row"><span class="label">Delivered</span>
+                <span class="value">${formatTime(p.deliveredAt)}</span></div>` : ''}
         </div>
     `).join('');
 }
@@ -864,13 +990,29 @@ function renderCarrierView() {
                 <span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
             <div class="detail-row"><span class="label">Released</span>
                 <span class="value">${formatTime(p.releasedAt)}</span></div>
+
             ${p.status === 'released' ? `
-                <div style="margin-top:12px">
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
                     <button type="button" class="btn btn-primary btn-sm"
                         onclick="trackDelivery('${id}')">
-                        📍 Track This Delivery
+                        📍 Track
                     </button>
-                </div>` : ''}
+                    <button type="button" class="btn btn-outline btn-sm"
+                        onclick="openReceiveModal('${id}')">
+                        ✅ Confirm Received
+                    </button>
+                </div>
+            ` : `
+                <div class="detail-row"><span class="label">Received By</span>
+                    <span class="value">${escapeHtml(p.receivedByName || '--')}</span></div>
+                <div class="detail-row"><span class="label">Delivered</span>
+                    <span class="value">${formatTime(p.deliveredAt)}</span></div>
+                ${p.receiverSignature ? `
+                    <div style="font-size:.72rem;color:var(--g400);margin-top:10px">Signature</div>
+                    <img src="${p.receiverSignature}" alt="Signature"
+                         style="width:100%;background:#f8fafc;border:1px solid var(--g100);
+                         border-radius:8px;margin-top:4px">` : ''}
+            `}
         </div>
     `).join('');
 }
@@ -890,14 +1032,19 @@ window.openReleaseForm = function(passId) {
 // ==================================================================
 // CAMERA — Real-time with getUserMedia
 // ==================================================================
-window.openCamera = async function(passId) {
+window.openCamera = async function(passId, mode = 'release') {
     currentCapturePassId = passId;
+    cameraMode = mode;
     capturedBlob = null;
 
     const modal = $('#cameraModal');
     const video = $('#cameraVideo');
     const preview = $('#capturePreview');
     const controls = $('#cameraControls');
+
+    $('#cameraTitle').textContent = mode === 'delivery'
+        ? '📷 Capture Delivery Photo'
+        : '📷 Capture Carrier Image';
 
     modal.classList.add('show');
     preview.classList.remove('show');
@@ -1022,6 +1169,7 @@ function blobToDataURL(blob) {
 window.usePhoto = async function() {
     if (!capturedBlob || !currentCapturePassId) return;
     const passId = currentCapturePassId;
+    const mode   = cameraMode;
 
     try {
         showToast('🔄 Processing image...');
@@ -1030,19 +1178,32 @@ window.usePhoto = async function() {
         console.log('🗜️ Compressed:', capturedBlob.size, '→', compressed.size, 'bytes');
 
         const dataUrl = await blobToDataURL(compressed);
-        selectedPreview[passId] = dataUrl;
 
-        const preview = document.getElementById(`preview-${passId}`);
-        if (preview) {
-            preview.src = dataUrl;
-            preview.style.display = 'block';
+        if (mode === 'delivery') {
+            // ---- Received confirmation photo ----
+            deliveryPhotoData = dataUrl;
+            const img = document.getElementById('deliveryPreview');
+            if (img) { img.src = dataUrl; img.style.display = 'block'; }
+            const lbl = document.getElementById('deliveryPhotoLabel');
+            if (lbl) lbl.textContent = 'Tap to retake photo';
+            showToast('📸 Delivery photo ready', 'success');
+        } else {
+            // ---- Gate release carrier photo ----
+            selectedPreview[passId] = dataUrl;
+
+            const preview = document.getElementById(`preview-${passId}`);
+            if (preview) {
+                preview.src = dataUrl;
+                preview.style.display = 'block';
+            }
+
+            const label = document.querySelector(
+                `#release-form-${passId} .camera-capture-btn span`);
+            if (label) label.textContent = 'Tap to retake photo';
+
+            showToast('📸 Photo ready — tap Confirm', 'success');
         }
 
-        const label = document.querySelector(
-            `#release-form-${passId} .camera-capture-btn span`);
-        if (label) label.textContent = 'Tap to retake photo';
-
-        showToast('📸 Photo ready — tap Confirm', 'success');
         closeCamera();
 
     } catch (err) {
@@ -1097,6 +1258,170 @@ window.confirmRelease = async function(passId) {
             btn.disabled = false;
             btn.innerHTML = '✅ Confirm Release';
         }
+    }
+};
+
+// ==================================================================
+// RECEIVED CONFIRMATION
+// ==================================================================
+window.captureDeliveryPhoto = function() {
+    if (!currentReceivePassId) return;
+    openCamera(currentReceivePassId, 'delivery');
+};
+
+window.openReceiveModal = function(passId) {
+    const p = allPasses[passId];
+    if (!p) { showToast('❌ Record not found', 'error'); return; }
+
+    currentReceivePassId = passId;
+    deliveryPhotoData = null;
+
+    $('#recvItem').textContent = p.model || '--';
+    $('#recvSN').textContent   = p.serialNumber || '--';
+    $('#recvDest').textContent = p.deliveryTo || '--';
+    $('#receiveSub').textContent = `Carrier: ${p.carrierName || '--'}`;
+
+    $('#recvName').value   = '';
+    $('#recvMobile').value = '';
+    $('#recvNote').value   = '';
+
+    const img = $('#deliveryPreview');
+    img.src = '';
+    img.style.display = 'none';
+    $('#deliveryPhotoLabel').textContent = 'Tap to capture delivery photo';
+
+    const btn = $('#recvConfirmBtn');
+    btn.disabled = false;
+    btn.innerHTML = '✅ Confirm Received';
+
+    $('#receiveModal').classList.add('show');
+
+    // Wait for the sheet animation/layout before sizing the canvas
+    setTimeout(() => {
+        setupSignaturePad();
+        bindSignatureEvents();
+    }, 80);
+};
+
+window.closeReceiveModal = function() {
+    $('#receiveModal').classList.remove('show');
+    currentReceivePassId = null;
+    deliveryPhotoData = null;
+    sigCtx = null;
+    sigDirty = false;
+};
+
+function setupSignaturePad() {
+    const canvas = $('#sigCanvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr  = window.devicePixelRatio || 1;
+
+    canvas.width  = Math.max(1, Math.round(rect.width  * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // reset (not scale) to avoid compounding
+    ctx.lineWidth   = 2.5;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.strokeStyle = '#1e293b';
+
+    sigCtx   = ctx;
+    sigDirty = false;
+    $('#sigHint').style.display = 'flex';
+}
+
+function bindSignatureEvents() {
+    if (sigBound) return;
+    sigBound = true;
+
+    const canvas = $('#sigCanvas');
+    let drawing = false;
+
+    const getPos = e => {
+        const r = canvas.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+
+    canvas.addEventListener('pointerdown', e => {
+        if (!sigCtx) return;
+        e.preventDefault();
+        drawing = true;
+        sigDirty = true;
+        $('#sigHint').style.display = 'none';
+        try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+        const p = getPos(e);
+        sigCtx.beginPath();
+        sigCtx.moveTo(p.x, p.y);
+        sigCtx.lineTo(p.x + 0.1, p.y + 0.1);   // dot for a single tap
+        sigCtx.stroke();
+    });
+
+    canvas.addEventListener('pointermove', e => {
+        if (!drawing || !sigCtx) return;
+        e.preventDefault();
+        const p = getPos(e);
+        sigCtx.lineTo(p.x, p.y);
+        sigCtx.stroke();
+    });
+
+    const end = () => { drawing = false; };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', end);
+}
+
+window.clearSignature = function() {
+    const canvas = $('#sigCanvas');
+    if (!canvas || !sigCtx) return;
+    sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+    sigDirty = false;
+    $('#sigHint').style.display = 'flex';
+};
+
+window.confirmReceived = async function() {
+    const passId = currentReceivePassId;
+    if (!passId) return;
+
+    const name = $('#recvName').value.trim();
+    if (!name) {
+        showToast('⚠️ Enter receiver name', 'error');
+        $('#recvName').focus();
+        return;
+    }
+    if (!sigDirty || !sigCtx) {
+        showToast('⚠️ Receiver signature required', 'error');
+        return;
+    }
+
+    const signature = $('#sigCanvas').toDataURL('image/png');
+
+    const btn = $('#recvConfirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Saving...';
+
+    try {
+        await update(ref(db, `gate_passes/${passId}`), {
+            status:            'delivered',
+            receivedByName:    name,
+            receivedByMobile:  $('#recvMobile').value.trim(),
+            deliveryNote:      $('#recvNote').value.trim(),
+            receiverSignature: signature,
+            deliveryPhotoUrl:  deliveryPhotoData || '',
+            deliveredAt:       Date.now(),
+            deliveredByRole:   currentRole
+        });
+
+        showToast('✅ Delivery confirmed!', 'success');
+        closeReceiveModal();
+        setTimeout(() => manualRefresh(), 300);
+
+    } catch (err) {
+        console.error('❌ Received confirm error:', err);
+        showToast('❌ ' + err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '✅ Confirm Received';
     }
 };
 
