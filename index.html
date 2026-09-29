@@ -6,14 +6,13 @@
 <meta name="theme-color" content="#0d9488">
 <title>Gate Pass Management System</title>
 
-<!-- Leaflet (free maps, no API key) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD73rkPwCGrZsrK2DdKM59A8yx8YkP8Doc&libraries=geometry,places&callback=initGoogleMaps" async defer></script>
 
 <!-- Firebase -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, set, onValue, update, get, child }
+    import { getDatabase, ref, push, set, onValue, update, get, child, remove }
         from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
@@ -29,7 +28,7 @@
     try {
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        window.FirebaseApp = { db, ref, push, set, onValue, update, get, child };
+        window.FirebaseApp = { db, ref, push, set, onValue, update, get, child, remove };
         console.log('✅ Firebase ready');
     } catch (err) {
         console.error('❌ Firebase init failed:', err);
@@ -43,7 +42,7 @@
     --white:#fff; --off:#f8fafc;
     --g50:#f1f5f9; --g100:#e2e8f0; --g200:#cbd5e1;
     --g400:#94a3b8; --g600:#475569; --g800:#1e293b;
-    --red:#dc2626;
+    --red:#dc2626; --red-d:#b91c1c;
     --sh-sm:0 1px 2px rgba(0,0,0,.05);
     --sh-md:0 4px 6px -1px rgba(0,0,0,.1);
     --sh-lg:0 10px 15px -3px rgba(0,0,0,.1);
@@ -70,9 +69,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .login-card h1{font-size:1.4rem;text-align:center;color:var(--g800);margin-bottom:4px}
 .login-card .sub{font-size:.85rem;text-align:center;color:var(--g400);margin-bottom:24px}
 .role-tabs{display:flex;background:var(--g50);border-radius:12px;padding:4px;gap:4px;margin-bottom:20px}
-.role-tabs button{flex:1;padding:10px 6px;border:none;background:transparent;
-    border-radius:8px;font-size:.75rem;font-weight:600;color:var(--g600);
-    cursor:pointer;transition:var(--t);font-family:inherit}
+.role-tabs button{flex:1;padding:10px 4px;border:none;background:transparent;
+    border-radius:8px;font-size:.68rem;font-weight:600;color:var(--g600);
+    cursor:pointer;transition:var(--t);font-family:inherit;white-space:nowrap}
 .role-tabs button.active{background:#fff;color:var(--green-d);box-shadow:var(--sh-sm)}
 .login-error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;
     font-size:.8rem;margin-bottom:14px;display:none}
@@ -129,6 +128,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .btn-primary{background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;
     box-shadow:0 4px 14px rgba(13,148,136,.35)}
 .btn-outline{background:transparent;color:var(--green-d);border:1.5px solid var(--green)}
+.btn-danger{background:linear-gradient(135deg,var(--red),var(--red-d));color:#fff;
+    box-shadow:0 4px 14px rgba(220,38,38,.3)}
 .btn-sm{padding:8px 16px;font-size:.8rem;width:auto}
 
 .camera-capture-btn{border:2px dashed var(--g200);border-radius:12px;
@@ -173,12 +174,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .badge-pending{background:#fef3c7;color:#92400e}
 .badge-released{background:#d1fae5;color:#065f46}
 .badge-delivered{background:#dbeafe;color:#1e40af}
+.badge-online{background:#d1fae5;color:#065f46}
+.badge-offline{background:#f1f5f9;color:#64748b}
 
 .map-container{width:100%;height:320px;border-radius:16px;overflow:hidden;
     margin-bottom:16px;box-shadow:var(--sh-md);border:2px solid var(--green);
     position:relative;z-index:1}
 #map{width:100%;height:100%}
-.leaflet-container{font-family:inherit}
+#adminMap{width:100%;height:100%}
 
 .live-indicator{display:flex;align-items:center;gap:8px;padding:10px 14px;
     background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(30,64,175,.08));
@@ -237,6 +240,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---------- ADMIN ---------- */
+.admin-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.stat-card{background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(30,64,175,.08));
+    border:1px solid var(--g100);border-radius:12px;padding:14px;text-align:center}
+.stat-card .num{font-size:1.55rem;font-weight:800;line-height:1;color:var(--green-d)}
+.stat-card .lbl{font-size:.68rem;color:var(--g400);font-weight:700;
+    text-transform:uppercase;margin-top:5px;letter-spacing:.05em}
+.stat-card.warn  .num{color:#92400e}
+.stat-card.ok    .num{color:#065f46}
+.stat-card.info  .num{color:#1e40af}
+.stat-card.danger .num{color:var(--red)}
+
+.admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.admin-actions .btn{width:auto}
+
+.danger-zone{border:1.5px solid #fecaca;background:#fef2f2;border-radius:12px;
+    padding:14px;margin:16px 0 12px}
+.danger-zone .dz-title{font-size:.82rem;font-weight:700;color:#991b1b;margin-bottom:4px}
+.danger-zone .dz-sub{font-size:.72rem;color:#b91c1c;opacity:.85;margin-bottom:10px}
+
+.records-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;
+    margin-bottom:10px;flex-wrap:wrap}
+.records-toolbar .form-group{margin:0;flex:1;min-width:160px}
+
+/* Live map list */
+.live-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.live-item{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:10px 12px;background:var(--g50);border-radius:10px;
+    border:1px solid var(--g100);font-size:.78rem}
+.live-item .li-left{display:flex;flex-direction:column;gap:2px;min-width:0}
+.live-item .li-title{font-weight:700;color:var(--g800);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live-item .li-sub{color:var(--g400);font-size:.7rem}
+.live-item .li-btn{background:#fff;border:1px solid var(--g200);color:var(--g600);
+    padding:5px 10px;border-radius:8px;font-size:.68rem;font-weight:700;
+    cursor:pointer;font-family:inherit;flex:0 0 auto}
+
 /* ---------- RECEIVED CONFIRMATION MODAL ---------- */
 .modal-overlay{position:fixed;inset:0;z-index:5500;background:rgba(15,23,42,.55);
     backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
@@ -286,6 +326,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
             <button class="active" data-role="gate">🚪 Gate</button>
             <button data-role="department">🏢 Dept</button>
             <button data-role="carrier">🚚 Carrier</button>
+            <button data-role="admin">⚙️ Admin</button>
         </div>
 
         <div class="login-error" id="loginError"></div>
@@ -293,7 +334,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         <form id="loginForm" autocomplete="on">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="loginUser" placeholder="gate / dept / carrier"
+                <input type="text" id="loginUser" placeholder="gate / dept / carrier / admin"
                        autocomplete="username" required>
             </div>
             <div class="form-group">
@@ -308,7 +349,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 
         <p style="text-align:center;font-size:.72rem;color:var(--g400);margin-top:18px;line-height:1.6">
             <strong>Demo Accounts</strong><br>
-            gate / gate123 &nbsp;·&nbsp; dept / dept123 &nbsp;·&nbsp; carrier / carrier123
+            gate / gate123 &nbsp;·&nbsp; dept / dept123<br>
+            carrier / carrier123 &nbsp;·&nbsp; admin / admin123
         </p>
     </div>
 </div>
@@ -418,6 +460,57 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         </div>
     </div>
 
+    <!-- === ADMIN === -->
+    <div class="panel" id="panel-admin">
+        <div class="section-header"><h2>System Overview</h2></div>
+        <div class="admin-stats" id="adminStats"></div>
+
+        <!-- LIVE MAP -->
+        <div class="section-header">
+            <h2>Live Fleet Map</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+                <span class="count" id="liveCount">0</span>
+                <button class="refresh-btn" onclick="fitAdminMap()">🎯 Fit All</button>
+            </div>
+        </div>
+        <div class="live-indicator">
+            <div class="live-dot"></div>
+            <span id="adminLiveStatus">Waiting for carrier GPS signals...</span>
+        </div>
+        <div class="map-container"><div id="adminMap"></div></div>
+        <div class="live-list" id="adminLiveList"></div>
+
+        <div class="section-header">
+            <h2>All Records</h2>
+            <button class="refresh-btn" onclick="manualRefresh()">🔄 Refresh</button>
+        </div>
+
+        <div class="records-toolbar">
+            <div class="form-group">
+                <input type="text" id="adminSearch"
+                       placeholder="🔍 Search by model, SN, carrier, destination..."
+                       oninput="renderAdminView()">
+            </div>
+        </div>
+
+        <div id="adminRecords"></div>
+
+        <div class="danger-zone">
+            <div class="dz-title">⚠️ Danger Zone</div>
+            <div class="dz-sub">Bulk actions permanently remove records from the database.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-outline btn-sm"
+                        onclick="deleteAllDelivered()">
+                    🧹 Clear Delivered
+                </button>
+                <button type="button" class="btn btn-danger btn-sm"
+                        onclick="deleteAllRecords()">
+                    💥 Delete All Records
+                </button>
+            </div>
+        </div>
+    </div>
+
     <nav class="bottom-nav" id="bottomNav">
         <button data-role="gate" onclick="switchRole('gate')">
             <span class="nav-icon">🚪</span><span>Gate</span></button>
@@ -425,6 +518,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
             <span class="nav-icon">🏢</span><span>Dept</span></button>
         <button data-role="carrier" onclick="switchRole('carrier')">
             <span class="nav-icon">🚚</span><span>Carrier</span></button>
+        <button data-role="admin" onclick="switchRole('admin')" style="display:none">
+            <span class="nav-icon">⚙️</span><span>Admin</span></button>
     </nav>
 </div>
 
@@ -515,7 +610,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 
 <script type="module">
 // ==================================================================
-// GATE PASS SYSTEM — MAIN LOGIC
+// GATE PASS SYSTEM — MAIN LOGIC (Google Maps Edition)
 // ==================================================================
 if (!window.FirebaseApp) {
     document.body.innerHTML =
@@ -523,26 +618,37 @@ if (!window.FirebaseApp) {
       '❌ Firebase failed. Open DevTools (F12) → Console.</div>';
     throw new Error('FirebaseApp missing');
 }
-const { db, ref, push, set, onValue, update, get, child } = window.FirebaseApp;
+const { db, ref, push, set, onValue, update, get, child, remove } = window.FirebaseApp;
 
 // ---- State ----
 let currentUser = null;
 let currentRole = 'gate';
 let allPasses = {};
+let allLiveLocations = {};
 let watchId = null;
-let map = null;
-let userMarker = null;
-let destMarker = null;
-let routeLine = null;
+
+// Carrier map
+let carrierMap = null;
+let carrierUserMarker = null;
+let carrierDestMarker = null;
+let carrierRouteLine = null;
 let currentCarrierPassId = null;
 const geocodeCache = {};
+
+// Admin map
+let adminMap = null;
+const adminMarkers = {};              // passId -> { marker, circle }
+let adminMapInitialized = false;
+
+// Google Maps readiness
+let googleMapsReady = false;
 
 // Camera
 let cameraStream = null;
 let cameraFacing = 'environment';
 let currentCapturePassId = null;
 let capturedBlob = null;
-let cameraMode = 'release';          // 'release' | 'delivery'
+let cameraMode = 'release';           // 'release' | 'delivery'
 
 // Received confirmation
 let currentReceivePassId = null;
@@ -551,12 +657,35 @@ let sigCtx = null;
 let sigDirty = false;
 let sigBound = false;
 
-// Memory maps (survive re-renders)
+// Memory maps
 const selectedPreview = {};
 const openReleaseForms = {};
 
+// Live = location updated within last 90 seconds
+const LIVE_THRESHOLD_MS = 90 * 1000;
+
+// Default map center (Colombo)
+const DEFAULT_CENTER = { lat: 6.9271, lng: 79.8612 };
+const DEFAULT_ZOOM = 12;
+
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
+
+// ==================================================================
+// GOOGLE MAPS READY CALLBACK (called by the API script)
+// ==================================================================
+window.initGoogleMaps = function() {
+    googleMapsReady = true;
+    console.log('✅ Google Maps JavaScript API ready');
+    // If a map container is already visible, initialise it now
+    if (currentRole === 'carrier') {
+        initCarrierMap();
+    }
+    if (currentRole === 'admin') {
+        initAdminMap();
+        renderAdminLive();
+    }
+};
 
 // ==================================================================
 // AUTH
@@ -565,7 +694,8 @@ const USERS = {
     gate:       { password: 'gate123',    role: 'gate',       label: 'Security Officer' },
     dept:       { password: 'dept123',    role: 'department', label: 'Department Staff' },
     department: { password: 'dept123',    role: 'department', label: 'Department Staff' },
-    carrier:    { password: 'carrier123', role: 'carrier',    label: 'Delivery Person' }
+    carrier:    { password: 'carrier123', role: 'carrier',    label: 'Delivery Person' },
+    admin:      { password: 'admin123',   role: 'admin',      label: 'System Admin' }
 };
 
 let loginRole = 'gate';
@@ -575,8 +705,8 @@ document.querySelectorAll('#loginRoleTabs button').forEach(b => {
         document.querySelectorAll('#loginRoleTabs button').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         loginRole = b.dataset.role;
-        const map = { gate: 'gate', department: 'dept', carrier: 'carrier' };
-        $('#loginUser').value = map[loginRole] || '';
+        const roleUser = { gate: 'gate', department: 'dept', carrier: 'carrier', admin: 'admin' };
+        $('#loginUser').value = roleUser[loginRole] || '';
         $('#loginPass').value = '';
         $('#loginPass').focus();
         $('#loginError').classList.remove('show');
@@ -591,7 +721,7 @@ $('#loginForm').addEventListener('submit', (e) => {
 
     const userRecord = USERS[user];
     if (!userRecord) {
-        err.textContent = `❌ Unknown username "${user}". Use: gate, dept, or carrier`;
+        err.textContent = `❌ Unknown username "${user}". Use: gate, dept, carrier, or admin`;
         err.classList.add('show');
         return;
     }
@@ -615,8 +745,20 @@ function enterApp() {
     }, 400);
 
     $('#userChip').textContent = currentUser.label;
+    applyNavVisibility(currentUser.role);
     switchRole(currentUser.role);
     startPassesListener();
+    startLiveLocationsListener();
+}
+
+function applyNavVisibility(role) {
+    const isAdmin = role === 'admin';
+    ['gate', 'department', 'carrier'].forEach(r => {
+        const btn = document.querySelector(`#bottomNav button[data-role="${r}"]`);
+        if (btn) btn.style.display = isAdmin ? 'none' : 'flex';
+    });
+    const adminBtn = document.querySelector('#bottomNav button[data-role="admin"]');
+    if (adminBtn) adminBtn.style.display = isAdmin ? 'flex' : 'none';
 }
 
 window.logout = function() {
@@ -646,6 +788,11 @@ window.logout = function() {
 // ROLE SWITCHING
 // ==================================================================
 window.switchRole = function(role) {
+    if (role === 'admin' && (!currentUser || currentUser.role !== 'admin')) {
+        showToast('⛔ Admin access only', 'error');
+        return;
+    }
+
     currentRole = role;
     $$('#bottomNav button').forEach(b => {
         b.classList.toggle('active', b.dataset.role === role);
@@ -655,18 +802,26 @@ window.switchRole = function(role) {
     if (panel) panel.classList.add('active');
 
     const headers = {
-        gate:       { title: 'Main Gate',  sub: 'Security Dashboard' },
-        department: { title: 'Department', sub: 'Gate Pass Creation' },
-        carrier:    { title: 'Carrier',    sub: 'Delivery Tracking' }
+        gate:       { title: 'Main Gate',   sub: 'Security Dashboard' },
+        department: { title: 'Department',  sub: 'Gate Pass Creation' },
+        carrier:    { title: 'Carrier',     sub: 'Delivery Tracking' },
+        admin:      { title: 'Admin Panel', sub: 'Live Map · Manage & Delete' }
     };
     $('#headerTitle').textContent = headers[role].title;
     $('#headerSubtitle').textContent = headers[role].sub;
 
     if (role === 'carrier') {
-        // Delay map init so the panel is visible first (Leaflet needs visible container)
         setTimeout(() => initCarrierMap(), 150);
     } else {
         stopLocationTracking();
+    }
+
+    if (role === 'admin') {
+        setTimeout(() => {
+            initAdminMap();
+            renderAdminView();
+            renderAdminLive();
+        }, 150);
     }
 };
 
@@ -683,9 +838,10 @@ function showToast(msg, type = '') {
 }
 
 // ==================================================================
-// FIREBASE LISTENER
+// FIREBASE LISTENERS
 // ==================================================================
 let passesListenerStarted = false;
+let liveListenerStarted = false;
 
 function startPassesListener() {
     if (passesListenerStarted) return;
@@ -694,7 +850,7 @@ function startPassesListener() {
     const passesRef = ref(db, 'gate_passes');
     onValue(passesRef, (snapshot) => {
         allPasses = snapshot.val() || {};
-        console.log('📥 Data updated. Total:', Object.keys(allPasses).length);
+        console.log('📥 Passes updated. Total:', Object.keys(allPasses).length);
         renderAllViews();
     }, (error) => {
         console.error('❌ Listener error:', error);
@@ -702,11 +858,29 @@ function startPassesListener() {
     });
 }
 
+function startLiveLocationsListener() {
+    if (liveListenerStarted) return;
+    liveListenerStarted = true;
+
+    const liveRef = ref(db, 'live_locations');
+    onValue(liveRef, (snapshot) => {
+        allLiveLocations = snapshot.val() || {};
+        if (currentRole === 'admin') renderAdminLive();
+    }, (error) => {
+        console.error('❌ Live locations listener error:', error);
+    });
+}
+
 window.manualRefresh = async function() {
     try {
-        const snap = await get(child(ref(db), 'gate_passes'));
-        allPasses = snap.val() || {};
+        const [passSnap, liveSnap] = await Promise.all([
+            get(child(ref(db), 'gate_passes')),
+            get(child(ref(db), 'live_locations'))
+        ]);
+        allPasses = passSnap.val() || {};
+        allLiveLocations = liveSnap.val() || {};
         renderAllViews();
+        if (currentRole === 'admin') renderAdminLive();
         showToast('🔄 Refreshed', 'success');
     } catch (err) {
         showToast('❌ Refresh failed: ' + err.message, 'error');
@@ -717,6 +891,7 @@ function renderAllViews() {
     renderGateView();
     renderDepartmentView();
     renderCarrierView();
+    if (currentRole === 'admin') renderAdminView();
 }
 
 // ==================================================================
@@ -1018,6 +1193,396 @@ function renderCarrierView() {
 }
 
 // ==================================================================
+// ADMIN — LIVE MAP (Google Maps)
+// ==================================================================
+function initAdminMap() {
+    if (adminMap) {
+        google.maps.event.trigger(adminMap, 'resize');
+        return;
+    }
+    if (!googleMapsReady) {
+        console.warn('Google Maps not ready yet for admin map');
+        return;
+    }
+    const el = document.getElementById('adminMap');
+    if (!el) return;
+
+    adminMap = new google.maps.Map(el, {
+        center: DEFAULT_CENTER,
+        zoom: 8,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        zoomControl: true
+    });
+
+    adminMapInitialized = true;
+    console.log('✅ Admin live map ready (Google Maps)');
+    renderAdminLive();
+}
+
+window.fitAdminMap = function() {
+    if (!adminMap) return;
+    const bounds = new google.maps.LatLngBounds();
+    let count = 0;
+    Object.keys(adminMarkers).forEach(id => {
+        const m = adminMarkers[id].marker;
+        if (m) { bounds.extend(m.getPosition()); count++; }
+    });
+    if (count === 0) {
+        showToast('ℹ️ No live positions yet');
+        return;
+    }
+    if (count === 1) {
+        adminMap.setCenter(bounds.getCenter());
+        adminMap.setZoom(15);
+    } else {
+        adminMap.fitBounds(bounds);
+    }
+};
+
+function renderAdminLive() {
+    const listEl = $('#adminLiveList');
+    const statusEl = $('#adminLiveStatus');
+    const countEl = $('#liveCount');
+    if (!listEl) return;
+
+    const entries = Object.entries(allLiveLocations)
+        .map(([passId, loc]) => ({ passId, ...loc }))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    const now = Date.now();
+    const liveCount = entries.filter(e => now - (e.timestamp || 0) < LIVE_THRESHOLD_MS).length;
+
+    if (countEl) countEl.textContent = liveCount;
+    if (statusEl) {
+        statusEl.textContent = entries.length === 0
+            ? 'Waiting for carrier GPS signals...'
+            : `${liveCount} live · ${entries.length} tracked`;
+    }
+
+    if (entries.length === 0) {
+        listEl.innerHTML = `
+            <div class="empty-state" style="padding:20px 12px">
+                <div class="icon">📡</div>
+                <p>No live carrier signals yet.</p>
+            </div>`;
+        // Remove stale markers
+        Object.keys(adminMarkers).forEach(id => {
+            const entry = adminMarkers[id];
+            if (entry.marker) entry.marker.setMap(null);
+            if (entry.circle) entry.circle.setMap(null);
+            delete adminMarkers[id];
+        });
+        return;
+    }
+
+    // ---- List items ----
+    listEl.innerHTML = entries.map(e => {
+        const p = allPasses[e.passId] || {};
+        const age = now - (e.timestamp || 0);
+        const live = age < LIVE_THRESHOLD_MS;
+        const title = p.model || `Pass ${e.passId.slice(0, 6)}`;
+        const sub = `${p.carrierName || 'Unknown carrier'} · ${p.deliveryTo || '--'}`;
+        return `
+            <div class="live-item">
+                <div class="li-left">
+                    <div class="li-title">${escapeHtml(title)}</div>
+                    <div class="li-sub">
+                        ${escapeHtml(sub)}<br>
+                        ${ageText(age)} · ${e.lat.toFixed(4)}, ${e.lng.toFixed(4)}
+                    </div>
+                </div>
+                <span class="badge ${live ? 'badge-online' : 'badge-offline'}">
+                    ${live ? 'Live' : 'Stale'}
+                </span>
+                <button class="li-btn" onclick="focusAdminMarker('${e.passId}')">🎯</button>
+            </div>`;
+    }).join('');
+
+    // ---- Markers on map ----
+    if (!adminMapInitialized || !adminMap) return;
+
+    const seen = new Set();
+
+    entries.forEach(e => {
+        const p = allPasses[e.passId] || {};
+        const age = now - (e.timestamp || 0);
+        const live = age < LIVE_THRESHOLD_MS;
+        const color = live ? '#0d9488' : '#94a3b8';
+        const pos = { lat: e.lat, lng: e.lng };
+
+        const infoHtml = `
+            <div style="font-size:.78rem;line-height:1.45;min-width:160px">
+                <strong>${escapeHtml(p.model || 'Gate Pass')}</strong><br>
+                SN: ${escapeHtml(p.serialNumber || '--')}<br>
+                Carrier: ${escapeHtml(p.carrierName || '--')}<br>
+                To: ${escapeHtml(p.deliveryTo || '--')}<br>
+                Status: ${statusLabel(p.status)}<br>
+                Updated: ${ageText(age)}
+            </div>`;
+
+        if (adminMarkers[e.passId]) {
+            const entry = adminMarkers[e.passId];
+            entry.marker.setPosition(pos);
+            entry.circle.setCenter(pos);
+            entry.circle.setOptions({ fillColor: color, strokeColor: color });
+            entry.infoWindow.setContent(infoHtml);
+        } else {
+            // Circle overlay for visual radar effect
+            const circle = new google.maps.Circle({
+                center: pos,
+                radius: 120,
+                strokeColor: color,
+                strokeOpacity: 0.7,
+                strokeWeight: 2,
+                fillColor: color,
+                fillOpacity: 0.18,
+                map: adminMap
+            });
+
+            // Advanced marker
+            const pin = new google.maps.marker.PinElement({
+                background: color,
+                borderColor: '#ffffff',
+                glyphColor: '#ffffff',
+                scale: 1.0
+            });
+
+            const marker = new google.maps.marker.AdvancedMarkerElement({
+                position: pos,
+                map: adminMap,
+                title: p.model || 'Carrier',
+                content: pin.element
+            });
+
+            const infoWindow = new google.maps.InfoWindow({ content: infoHtml });
+
+            marker.addListener('click', () => {
+                infoWindow.open({ map: adminMap, anchor: marker });
+            });
+
+            adminMarkers[e.passId] = { marker, circle, infoWindow };
+        }
+        seen.add(e.passId);
+    });
+
+    // Remove markers for locations no longer present
+    Object.keys(adminMarkers).forEach(id => {
+        if (!seen.has(id)) {
+            const entry = adminMarkers[id];
+            if (entry.marker) entry.marker.setMap(null);
+            if (entry.circle) entry.circle.setMap(null);
+            delete adminMarkers[id];
+        }
+    });
+}
+
+window.focusAdminMarker = function(passId) {
+    if (!adminMap || !adminMarkers[passId]) return;
+    const entry = adminMarkers[passId];
+    const pos = entry.marker.position;
+    adminMap.setCenter(pos);
+    adminMap.setZoom(16);
+    entry.infoWindow.open({ map: adminMap, anchor: entry.marker });
+};
+
+// ==================================================================
+// ADMIN VIEW + DELETION
+// ==================================================================
+function renderAdminView() {
+    const container = $('#adminRecords');
+    const statsEl   = $('#adminStats');
+    if (!container || !statsEl) return;
+
+    const passes = Object.entries(allPasses).map(([id, p]) => ({ id, ...p }));
+    const total     = passes.length;
+    const pending   = passes.filter(p => p.status === 'pending_gate').length;
+    const released  = passes.filter(p => p.status === 'released').length;
+    const delivered = passes.filter(p => p.status === 'delivered').length;
+
+    statsEl.innerHTML = `
+        <div class="stat-card info">
+            <div class="num">${total}</div><div class="lbl">Total</div></div>
+        <div class="stat-card warn">
+            <div class="num">${pending}</div><div class="lbl">Pending</div></div>
+        <div class="stat-card ok">
+            <div class="num">${released}</div><div class="lbl">Released</div></div>
+        <div class="stat-card danger">
+            <div class="num">${delivered}</div><div class="lbl">Delivered</div></div>
+    `;
+
+    const q = ($('#adminSearch')?.value || '').trim().toLowerCase();
+    const filtered = passes
+        .filter(p => {
+            if (!q) return true;
+            return (p.model || '').toLowerCase().includes(q)
+                || (p.serialNumber || '').toLowerCase().includes(q)
+                || (p.carrierName || '').toLowerCase().includes(q)
+                || (p.deliveryTo || '').toLowerCase().includes(q)
+                || (p.deliveryFrom || '').toLowerCase().includes(q)
+                || (p.receivedByName || '').toLowerCase().includes(q);
+        })
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">🗂️</div>
+                <p>${q ? 'No records match your search.' : 'No records in the system.'}</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(p => {
+        const hasLive = !!allLiveLocations[p.id];
+        return `
+        <div class="card" id="admin-card-${p.id}">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">${escapeHtml(p.model || '--')}</div>
+                    <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
+                </div>
+                <span class="badge badge-${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+            </div>
+            <div class="detail-row"><span class="label">From</span>
+                <span class="value">${escapeHtml(p.deliveryFrom || '--')}</span></div>
+            <div class="detail-row"><span class="label">To</span>
+                <span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
+            <div class="detail-row"><span class="label">Carrier</span>
+                <span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+            <div class="detail-row"><span class="label">Mobile</span>
+                <span class="value">${escapeHtml(p.mobileNumber || '--')}</span></div>
+            <div class="detail-row"><span class="label">Created</span>
+                <span class="value">${formatTime(p.createdAt)}</span></div>
+            ${p.releasedAt ? `
+            <div class="detail-row"><span class="label">Released</span>
+                <span class="value">${formatTime(p.releasedAt)}</span></div>` : ''}
+            ${p.deliveredAt ? `
+            <div class="detail-row"><span class="label">Delivered</span>
+                <span class="value">${formatTime(p.deliveredAt)}</span></div>
+            <div class="detail-row"><span class="label">Received By</span>
+                <span class="value">${escapeHtml(p.receivedByName || '--')}</span></div>` : ''}
+            ${hasLive ? `
+            <div class="detail-row"><span class="label">Live GPS</span>
+                <span class="value" style="color:var(--green-d)">🟢 Available</span></div>` : ''}
+
+            <div class="admin-actions">
+                ${hasLive ? `
+                    <button type="button" class="btn btn-outline btn-sm"
+                            onclick="focusAdminMarker('${p.id}')">
+                        🎯 Show on Map
+                    </button>` : ''}
+                <button type="button" class="btn btn-danger btn-sm"
+                        onclick="deletePass('${p.id}')">
+                    🗑️ Delete Record
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+window.deletePass = async function(passId) {
+    const p = allPasses[passId];
+    if (!p) { showToast('❌ Record not found', 'error'); return; }
+
+    const label = `${p.model || 'Unknown'} (SN: ${p.serialNumber || '--'})`;
+    if (!confirm(`⚠️ Delete this record permanently?\n\n${label}\n\nThis cannot be undone.`)) return;
+
+    try {
+        await remove(ref(db, `gate_passes/${passId}`));
+        try { await remove(ref(db, `live_locations/${passId}`)); } catch (_) {}
+
+        // Remove Google Maps marker + circle
+        if (adminMarkers[passId]) {
+            const entry = adminMarkers[passId];
+            if (entry.marker) entry.marker.setMap(null);
+            if (entry.circle) entry.circle.setMap(null);
+            delete adminMarkers[passId];
+        }
+        delete allLiveLocations[passId];
+        delete selectedPreview[passId];
+        delete openReleaseForms[passId];
+
+        showToast('🗑️ Record deleted', 'success');
+        renderAdminLive();
+        setTimeout(manualRefresh, 200);
+    } catch (err) {
+        console.error('❌ Delete error:', err);
+        showToast('❌ Delete failed: ' + err.message, 'error');
+    }
+};
+
+window.deleteAllDelivered = async function() {
+    const ids = Object.entries(allPasses)
+        .filter(([, p]) => p.status === 'delivered')
+        .map(([id]) => id);
+
+    if (ids.length === 0) {
+        showToast('ℹ️ No delivered records to clear');
+        return;
+    }
+    if (!confirm(`⚠️ Delete ${ids.length} delivered record(s)?\n\nThis cannot be undone.`)) return;
+
+    try {
+        await Promise.all(ids.map(id => remove(ref(db, `gate_passes/${id}`))));
+        await Promise.all(ids.map(id =>
+            remove(ref(db, `live_locations/${id}`)).catch(() => {})
+        ));
+        ids.forEach(id => {
+            if (adminMarkers[id]) {
+                const entry = adminMarkers[id];
+                if (entry.marker) entry.marker.setMap(null);
+                if (entry.circle) entry.circle.setMap(null);
+                delete adminMarkers[id];
+            }
+            delete allLiveLocations[id];
+        });
+        showToast(`🗑️ Deleted ${ids.length} delivered record(s)`, 'success');
+        renderAdminLive();
+        setTimeout(manualRefresh, 200);
+    } catch (err) {
+        console.error('❌ Bulk delete error:', err);
+        showToast('❌ Bulk delete failed: ' + err.message, 'error');
+    }
+};
+
+window.deleteAllRecords = async function() {
+    const ids = Object.keys(allPasses);
+    if (ids.length === 0) {
+        showToast('ℹ️ No records to delete');
+        return;
+    }
+    if (!confirm(`💥 Delete ALL ${ids.length} gate pass record(s)?\n\nThis will also clear live location data. This action CANNOT be undone.`)) return;
+    if (!confirm('Are you absolutely sure? This is your final confirmation.')) return;
+
+    try {
+        await Promise.all(ids.map(id => remove(ref(db, `gate_passes/${id}`))));
+        await Promise.all(ids.map(id =>
+            remove(ref(db, `live_locations/${id}`)).catch(() => {})
+        ));
+
+        Object.keys(adminMarkers).forEach(id => {
+            const entry = adminMarkers[id];
+            if (entry.marker) entry.marker.setMap(null);
+            if (entry.circle) entry.circle.setMap(null);
+            delete adminMarkers[id];
+        });
+        allLiveLocations = {};
+
+        Object.keys(selectedPreview).forEach(k => delete selectedPreview[k]);
+        Object.keys(openReleaseForms).forEach(k => delete openReleaseForms[k]);
+
+        showToast('💥 All records deleted', 'success');
+        renderAdminLive();
+        setTimeout(manualRefresh, 200);
+    } catch (err) {
+        console.error('❌ Delete-all error:', err);
+        showToast('❌ Delete-all failed: ' + err.message, 'error');
+    }
+};
+
+// ==================================================================
 // OPEN RELEASE FORM
 // ==================================================================
 window.openReleaseForm = function(passId) {
@@ -1180,7 +1745,6 @@ window.usePhoto = async function() {
         const dataUrl = await blobToDataURL(compressed);
 
         if (mode === 'delivery') {
-            // ---- Received confirmation photo ----
             deliveryPhotoData = dataUrl;
             const img = document.getElementById('deliveryPreview');
             if (img) { img.src = dataUrl; img.style.display = 'block'; }
@@ -1188,7 +1752,6 @@ window.usePhoto = async function() {
             if (lbl) lbl.textContent = 'Tap to retake photo';
             showToast('📸 Delivery photo ready', 'success');
         } else {
-            // ---- Gate release carrier photo ----
             selectedPreview[passId] = dataUrl;
 
             const preview = document.getElementById(`preview-${passId}`);
@@ -1296,7 +1859,6 @@ window.openReceiveModal = function(passId) {
 
     $('#receiveModal').classList.add('show');
 
-    // Wait for the sheet animation/layout before sizing the canvas
     setTimeout(() => {
         setupSignaturePad();
         bindSignatureEvents();
@@ -1321,7 +1883,7 @@ function setupSignaturePad() {
     canvas.height = Math.max(1, Math.round(rect.height * dpr));
 
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // reset (not scale) to avoid compounding
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineWidth   = 2.5;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
@@ -1354,7 +1916,7 @@ function bindSignatureEvents() {
         const p = getPos(e);
         sigCtx.beginPath();
         sigCtx.moveTo(p.x, p.y);
-        sigCtx.lineTo(p.x + 0.1, p.y + 0.1);   // dot for a single tap
+        sigCtx.lineTo(p.x + 0.1, p.y + 0.1);
         sigCtx.stroke();
     });
 
@@ -1426,44 +1988,41 @@ window.confirmReceived = async function() {
 };
 
 // ==================================================================
-// LEAFLET MAP + REAL-TIME LOCATION
+// CARRIER — GOOGLE MAPS + REAL-TIME LOCATION
 // ==================================================================
 function initCarrierMap() {
-    if (map) {
-        setTimeout(() => map.invalidateSize(), 100);
+    if (carrierMap) {
+        google.maps.event.trigger(carrierMap, 'resize');
+        return;
+    }
+    if (!googleMapsReady) {
+        console.warn('Google Maps not ready yet for carrier map');
         return;
     }
     const el = document.getElementById('map');
-    if (!el || typeof L === 'undefined') {
-        console.warn('Leaflet not loaded yet');
-        return;
-    }
+    if (!el) return;
 
-    map = L.map(el, {
-        zoomControl: true,
-        attributionControl: true
-    }).setView([6.9271, 79.8612], 14);
+    carrierMap = new google.maps.Map(el, {
+        center: DEFAULT_CENTER,
+        zoom: 14,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        zoomControl: true
+    });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    console.log('✅ Leaflet map ready');
+    console.log('✅ Carrier map ready (Google Maps)');
 }
 
 window.trackDelivery = function(passId) {
     currentCarrierPassId = passId;
     $('#carrierMapSection').style.display = 'block';
 
-    if (!map) initCarrierMap();
-    if (!map) {
+    if (!carrierMap) initCarrierMap();
+    if (!carrierMap) {
         showToast('⚠️ Map failed to load', 'error');
         return;
     }
-
-    // Force Leaflet to recalculate size now that section is visible
-    setTimeout(() => map.invalidateSize(), 250);
 
     if (watchId) navigator.geolocation.clearWatch(watchId);
 
@@ -1475,23 +2034,27 @@ window.trackDelivery = function(passId) {
                 `📍 GPS Active — ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
             $('#lastUpdate').textContent = new Date().toLocaleTimeString();
 
-            const pos = [lat, lng];
+            const pos = { lat, lng };
 
             // Center map on user
-            if (map) map.setView(pos, map.getZoom());
+            carrierMap.panTo(pos);
 
-            // Update/create user marker (green pulsing dot)
-            if (userMarker) {
-                userMarker.setLatLng(pos);
+            // Update/create user marker (green pulsing dot using AdvancedMarkerElement)
+            if (carrierUserMarker) {
+                carrierUserMarker.position = pos;
             } else {
-                userMarker = L.circleMarker(pos, {
-                    radius: 10,
-                    fillColor: '#0d9488',
-                    color: '#ffffff',
-                    weight: 3,
-                    opacity: 1,
-                    fillOpacity: 1
-                }).addTo(map).bindPopup('Your location');
+                const pin = new google.maps.marker.PinElement({
+                    background: '#0d9488',
+                    borderColor: '#ffffff',
+                    glyphColor: '#ffffff',
+                    scale: 1.1
+                });
+                carrierUserMarker = new google.maps.marker.AdvancedMarkerElement({
+                    position: pos,
+                    map: carrierMap,
+                    title: 'Your location',
+                    content: pin.element
+                });
             }
 
             // Save to Firebase
@@ -1512,82 +2075,86 @@ window.trackDelivery = function(passId) {
 };
 
 async function updateRoute(origin) {
-    if (!currentCarrierPassId || !map) return;
+    if (!currentCarrierPassId || !carrierMap) return;
     const pass = allPasses[currentCarrierPassId];
     if (!pass) return;
     const dest = pass.destinationAddress || pass.deliveryTo;
     if (!dest) return;
 
     try {
-        // 1) Geocode destination (cached)
+        // 1) Geocode destination (cached) using Google Maps Geocoder
         let destCoords = geocodeCache[dest];
         if (!destCoords) {
             $('#distanceInfo').textContent = 'Locating...';
-            const geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='
-                         + encodeURIComponent(dest);
-            const res = await fetch(geoUrl, { headers: { 'Accept': 'application/json' } });
-            const arr = await res.json();
-            if (!arr || !arr.length) {
+            const geocoder = new google.maps.Geocoder();
+            const result = await geocoder.geocode({ address: dest });
+            if (!result.results || !result.results.length) {
                 $('#distanceInfo').textContent = 'Address not found';
                 return;
             }
-            destCoords = [parseFloat(arr[0].lat), parseFloat(arr[0].lon)];
+            const loc = result.results[0].geometry.location;
+            destCoords = { lat: loc.lat(), lng: loc.lng() };
             geocodeCache[dest] = destCoords;
         }
 
-        // 2) Destination marker (blue teardrop)
-        if (destMarker) {
-            destMarker.setLatLng(destCoords);
+        // 2) Destination marker (blue pin)
+        if (carrierDestMarker) {
+            carrierDestMarker.position = destCoords;
         } else {
-            destMarker = L.marker(destCoords, {
-                icon: L.divIcon({
-                    html: '<div style="background:#1e40af;width:22px;height:22px;' +
-                          'border-radius:50% 50% 50% 0;transform:rotate(-45deg);' +
-                          'border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>',
-                    className: '',
-                    iconSize: [22, 22],
-                    iconAnchor: [11, 22]
-                })
-            }).addTo(map).bindPopup('Destination');
+            const pin = new google.maps.marker.PinElement({
+                background: '#1e40af',
+                borderColor: '#ffffff',
+                glyphColor: '#ffffff',
+                scale: 1.1
+            });
+            carrierDestMarker = new google.maps.marker.AdvancedMarkerElement({
+                position: destCoords,
+                map: carrierMap,
+                title: 'Destination',
+                content: pin.element
+            });
         }
 
-        // 3) OSRM route
-        const [lat1, lon1] = origin;
-        const [lat2, lon2] = destCoords;
-        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/`
-                      + `${lon1},${lat1};${lon2},${lat2}`
-                      + `?overview=full&geometries=geojson`;
+        // 3) Use Google Maps DirectionsService for route
+        const directionsService = new google.maps.DirectionsService();
+        const directionsResult = await directionsService.route({
+            origin: origin,
+            destination: destCoords,
+            travelMode: google.maps.TravelMode.DRIVING
+        });
 
-        const routeRes = await fetch(osrmUrl);
-        const routeData = await routeRes.json();
-
-        if (!routeData.routes || !routeData.routes.length) {
+        const route = directionsResult.routes[0];
+        if (!route) {
             $('#distanceInfo').textContent = 'No route';
             return;
         }
 
-        const route = routeData.routes[0];
-        const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+        // 4) Draw route polyline using Google Maps Polyline
+        const path = route.overview_path;
 
-        // 4) Green route line
-        if (routeLine) {
-            routeLine.setLatLngs(coords);
+        if (carrierRouteLine) {
+            carrierRouteLine.setPath(path);
         } else {
-            routeLine = L.polyline(coords, {
-                color: '#0d9488',
-                weight: 6,
-                opacity: 0.9,
-                lineJoin: 'round'
-            }).addTo(map);
+            carrierRouteLine = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: '#0d9488',
+                strokeOpacity: 0.9,
+                strokeWeight: 6,
+                map: carrierMap
+            });
         }
 
         // 5) Fit view
-        const bounds = L.latLngBounds([origin, destCoords]);
-        map.fitBounds(bounds, { padding: [40, 40] });
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend(origin);
+        bounds.extend(destCoords);
+        carrierMap.fitBounds(bounds);
 
-        // 6) Distance + ETA
-        const dist = route.distance;
-        const dur  = route.duration;
+        // 6) Distance + ETA from legs
+        const leg = route.legs[0];
+        const dist = leg.distance.value;       // meters
+        const dur  = leg.duration.value;       // seconds
         $('#distanceInfo').textContent =
             dist > 1000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
         $('#etaInfo').textContent = Math.round(dur / 60) + ' min';
@@ -1626,11 +2193,22 @@ function statusBadge(s) {
 function statusLabel(s) {
     return { pending_gate:'Pending', released:'Released', delivered:'Delivered' }[s] || s;
 }
+function ageText(ms) {
+    if (!ms && ms !== 0) return '--';
+    const s = Math.floor(ms / 1000);
+    if (s < 10) return 'just now';
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+}
 
 window.addEventListener('error', e => console.error('❌', e.error || e.message));
 window.addEventListener('unhandledrejection', e => console.error('❌ Promise:', e.reason));
 
-console.log('✅ Gate Pass System ready');
+console.log('✅ Gate Pass System ready (Google Maps Edition)');
 </script>
 </body>
 </html>
