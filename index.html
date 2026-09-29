@@ -12,8 +12,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, set, onValue, update, get, child }
         from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-    import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL }
-        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCzIgd061S77b_QSdl9aDHg2p_DEICENRw",
@@ -28,13 +26,10 @@
     try {
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const storage = getStorage(app);
-        window.FirebaseApp = { db, storage, ref, push, set, onValue, update, get, child,
-                               storageRef, uploadBytesResumable, getDownloadURL };
+        window.FirebaseApp = { db, ref, push, set, onValue, update, get, child };
         console.log('✅ Firebase ready');
     } catch (err) {
         console.error('❌ Firebase init failed:', err);
-        window.FirebaseInitError = err;
     }
 </script>
 
@@ -49,111 +44,80 @@
     --sh-sm:0 1px 2px rgba(0,0,0,.05);
     --sh-md:0 4px 6px -1px rgba(0,0,0,.1);
     --sh-lg:0 10px 15px -3px rgba(0,0,0,.1);
-    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:24px;
     --t:all .3s cubic-bezier(.4,0,.2,1);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
      background:var(--off);color:var(--g800);min-height:100vh;overflow-x:hidden}
 
-/* ========= LOGIN ========= */
-#loginScreen{
-    position:fixed;inset:0;z-index:5000;
+/* ---------- LOGIN ---------- */
+#loginScreen{position:fixed;inset:0;z-index:5000;
     background:linear-gradient(135deg,#0f766e 0%,#1e40af 100%);
     display:flex;align-items:center;justify-content:center;padding:20px;
-    transition:opacity .4s ease,visibility .4s ease;
-}
+    transition:opacity .4s ease,visibility .4s ease}
 #loginScreen.hidden{opacity:0;visibility:hidden;pointer-events:none}
-.login-card{
-    background:#fff;border-radius:24px;padding:32px 26px;
+.login-card{background:#fff;border-radius:24px;padding:32px 26px;
     width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);
-    animation:slideUp .5s cubic-bezier(.4,0,.2,1);
-}
+    animation:slideUp .5s cubic-bezier(.4,0,.2,1)}
 @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-.login-logo{
-    width:70px;height:70px;border-radius:20px;margin:0 auto 16px;
+.login-logo{width:70px;height:70px;border-radius:20px;margin:0 auto 16px;
     background:linear-gradient(135deg,var(--green),var(--blue));
     display:flex;align-items:center;justify-content:center;
-    font-size:2rem;box-shadow:0 8px 24px rgba(13,148,136,.4);
-}
+    font-size:2rem;box-shadow:0 8px 24px rgba(13,148,136,.4)}
 .login-card h1{font-size:1.4rem;text-align:center;color:var(--g800);margin-bottom:4px}
 .login-card .sub{font-size:.85rem;text-align:center;color:var(--g400);margin-bottom:24px}
 .role-tabs{display:flex;background:var(--g50);border-radius:12px;padding:4px;gap:4px;margin-bottom:20px}
-.role-tabs button{
-    flex:1;padding:10px 6px;border:none;background:transparent;border-radius:8px;
-    font-size:.75rem;font-weight:600;color:var(--g600);cursor:pointer;
-    transition:var(--t);font-family:inherit;
-}
+.role-tabs button{flex:1;padding:10px 6px;border:none;background:transparent;
+    border-radius:8px;font-size:.75rem;font-weight:600;color:var(--g600);
+    cursor:pointer;transition:var(--t);font-family:inherit}
 .role-tabs button.active{background:#fff;color:var(--green-d);box-shadow:var(--sh-sm)}
-.login-error{
-    background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;
-    font-size:.8rem;margin-bottom:14px;display:none;
-}
-.login-error.show{display:block;animation:shake .4s}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.login-error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;
+    font-size:.8rem;margin-bottom:14px;display:none}
+.login-error.show{display:block}
 
-/* ========= APP SHELL ========= */
+/* ---------- APP ---------- */
 .app-container{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;
     position:relative;box-shadow:0 0 40px rgba(0,0,0,.08)}
-.app-header{
-    background:linear-gradient(135deg,var(--green),var(--blue));
+.app-header{background:linear-gradient(135deg,var(--green),var(--blue));
     color:#fff;padding:20px 20px 16px;position:sticky;top:0;z-index:100;
-    border-radius:0 0 24px 24px;box-shadow:var(--sh-lg);
-}
+    border-radius:0 0 24px 24px;box-shadow:var(--sh-lg)}
 .app-header h1{font-size:1.15rem;font-weight:700;letter-spacing:-.02em}
 .app-header .subtitle{font-size:.75rem;opacity:.85;margin-top:2px}
 .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .header-right{display:flex;align-items:center;gap:8px}
-.user-chip{
-    background:rgba(255,255,255,.2);backdrop-filter:blur(10px);
+.user-chip{background:rgba(255,255,255,.2);backdrop-filter:blur(10px);
     padding:5px 10px;border-radius:20px;font-size:.7rem;font-weight:600;
     border:1px solid rgba(255,255,255,.3);max-width:110px;overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap;
-}
-.logout-btn{
-    background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);
+    text-overflow:ellipsis;white-space:nowrap}
+.logout-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);
     color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;
     display:flex;align-items:center;justify-content:center;font-size:.9rem;
-    transition:var(--t);
-}
+    transition:var(--t)}
 .logout-btn:active{transform:scale(.9)}
 
-/* ========= ROLE SWITCHER (top) ========= */
-.role-switcher{display:flex;background:var(--g100);border-radius:16px;
-    margin:16px 20px;padding:4px;gap:4px}
-.role-switcher button{
-    flex:1;padding:10px 8px;border:none;background:transparent;border-radius:8px;
-    font-size:.78rem;font-weight:600;color:var(--g600);cursor:pointer;
-    transition:var(--t);font-family:inherit;
-}
-.role-switcher button.active{background:#fff;color:var(--green-d);box-shadow:var(--sh-sm)}
-
-/* ========= PANELS ========= */
 .panel{display:none;padding:0 20px 100px;animation:fadeIn .3s ease}
 .panel.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-/* ========= CARDS ========= */
 .card{background:#fff;border:1px solid var(--g100);border-radius:16px;
     padding:16px;margin-bottom:12px;box-shadow:var(--sh-sm);transition:var(--t)}
 .card:hover{box-shadow:var(--sh-md)}
-.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;
+    margin-bottom:12px;gap:8px}
 .card-title{font-size:.95rem;font-weight:700;color:var(--g800)}
 .card-subtitle{font-size:.78rem;color:var(--g400);margin-top:2px}
 
-/* ========= FORMS ========= */
 .form-group{margin-bottom:14px}
-.form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--g600);margin-bottom:6px}
-.form-group input,.form-group select,.form-group textarea{
-    width:100%;padding:12px 14px;border:1.5px solid var(--g200);
-    border-radius:8px;font-size:.9rem;font-family:inherit;background:#fff;
-    color:var(--g800);transition:var(--t);outline:none;
-}
-.form-group input:focus,.form-group textarea:focus{
-    border-color:var(--green);box-shadow:0 0 0 3px rgba(13,148,136,.12)}
+.form-group label{display:block;font-size:.78rem;font-weight:600;
+    color:var(--g600);margin-bottom:6px}
+.form-group input,.form-group textarea{width:100%;padding:12px 14px;
+    border:1.5px solid var(--g200);border-radius:8px;font-size:.9rem;
+    font-family:inherit;background:#fff;color:var(--g800);transition:var(--t);
+    outline:none}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(13,148,136,.12)}
 .form-group textarea{resize:vertical;min-height:70px}
 
-/* ========= BUTTONS ========= */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
     padding:13px 24px;border:none;border-radius:8px;font-size:.9rem;
     font-weight:600;font-family:inherit;cursor:pointer;transition:var(--t);width:100%}
@@ -163,79 +127,52 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     box-shadow:0 4px 14px rgba(13,148,136,.35)}
 .btn-outline{background:transparent;color:var(--green-d);border:1.5px solid var(--green)}
 .btn-sm{padding:8px 16px;font-size:.8rem;width:auto}
-.btn-red{background:var(--red);color:#fff}
 
-/* ========= CAMERA CAPTURE BUTTON ========= */
-.camera-capture-btn{
-    border:2px dashed var(--g200);border-radius:12px;padding:22px;
-    text-align:center;cursor:pointer;transition:var(--t);background:var(--g50);
-    display:flex;flex-direction:column;align-items:center;gap:8px;
-}
+.camera-capture-btn{border:2px dashed var(--g200);border-radius:12px;
+    padding:22px;text-align:center;cursor:pointer;transition:var(--t);
+    background:var(--g50);display:flex;flex-direction:column;align-items:center;gap:8px}
 .camera-capture-btn:hover{border-color:var(--green);background:rgba(13,148,136,.04)}
 .camera-capture-btn .icon{font-size:1.8rem}
 .camera-capture-btn span{font-size:.8rem;font-weight:600;color:var(--g600)}
-.captured-preview{
-    width:100%;max-height:200px;object-fit:cover;border-radius:8px;
-    margin-top:10px;display:none;border:2px solid var(--green);
-}
+.captured-preview{width:100%;max-height:200px;object-fit:cover;border-radius:8px;
+    margin-top:10px;display:none;border:2px solid var(--green)}
 
-/* ========= CAMERA MODAL ========= */
-#cameraModal{
-    position:fixed;inset:0;z-index:6000;background:#000;
-    display:none;flex-direction:column;
-}
+#cameraModal{position:fixed;inset:0;z-index:6000;background:#000;
+    display:none;flex-direction:column}
 #cameraModal.show{display:flex}
 #cameraVideo{flex:1;width:100%;object-fit:cover;background:#000}
-.camera-controls{
-    padding:16px 20px calc(16px + env(safe-area-inset-bottom));
+.camera-controls{padding:16px 20px calc(16px + env(safe-area-inset-bottom));
     background:linear-gradient(180deg,rgba(0,0,0,.5),#000);
-    display:flex;align-items:center;justify-content:space-around;
-}
-.cam-btn{
-    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+    display:flex;align-items:center;justify-content:space-around}
+.cam-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
     color:#fff;width:52px;height:52px;border-radius:50%;cursor:pointer;
     display:flex;align-items:center;justify-content:center;font-size:1.3rem;
-    transition:var(--t);font-family:inherit;
-}
+    transition:var(--t);font-family:inherit}
 .cam-btn:active{transform:scale(.9)}
-.cam-shutter{
-    width:72px;height:72px;border-radius:50%;background:#fff;
-    border:5px solid rgba(255,255,255,.35);cursor:pointer;
-    transition:var(--t);
-}
+.cam-shutter{width:72px;height:72px;border-radius:50%;background:#fff;
+    border:5px solid rgba(255,255,255,.35);cursor:pointer;transition:var(--t)}
 .cam-shutter:active{transform:scale(.92)}
-.camera-header{
-    position:absolute;top:0;left:0;right:0;padding:16px 20px;
+.camera-header{position:absolute;top:0;left:0;right:0;padding:16px 20px;
     display:flex;justify-content:space-between;align-items:center;
-    background:linear-gradient(180deg,rgba(0,0,0,.6),transparent);z-index:10;
-}
+    background:linear-gradient(180deg,rgba(0,0,0,.6),transparent);z-index:10}
 .camera-header .title{color:#fff;font-size:.9rem;font-weight:600}
-.camera-header button{
-    background:rgba(255,255,255,.15);border:none;color:#fff;
-    width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem;
-}
-#capturePreview{
-    position:absolute;inset:0;background:#000;display:none;
-    flex-direction:column;
-}
+.camera-header button{background:rgba(255,255,255,.15);border:none;color:#fff;
+    width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem}
+#capturePreview{position:absolute;inset:0;background:#000;display:none;
+    flex-direction:column}
 #capturePreview.show{display:flex}
 #capturePreview img{flex:1;width:100%;object-fit:contain;background:#000}
-.capture-actions{
-    display:flex;gap:12px;padding:20px;background:#000;
-}
+.capture-actions{display:flex;gap:12px;padding:20px;background:#000}
 .capture-actions .btn{flex:1}
 
-/* ========= BADGES ========= */
 .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;
     font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
 .badge-pending{background:#fef3c7;color:#92400e}
 .badge-released{background:#d1fae5;color:#065f46}
 .badge-delivered{background:#dbeafe;color:#1e40af}
 
-/* ========= MAP ========= */
 .map-container{width:100%;height:300px;border-radius:16px;overflow:hidden;
     margin-bottom:16px;box-shadow:var(--sh-md);border:2px solid var(--green)}
-
 .live-indicator{display:flex;align-items:center;gap:8px;padding:10px 14px;
     background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(30,64,175,.08));
     border-radius:8px;font-size:.78rem;color:var(--g600);margin-bottom:12px;
@@ -244,22 +181,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
 
-/* ========= EMPTY / SECTION ========= */
 .empty-state{text-align:center;padding:40px 20px;color:var(--g400)}
 .empty-state .icon{font-size:2.5rem;margin-bottom:12px;opacity:.5}
 .empty-state p{font-size:.82rem}
-.section-header{display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px}
+.section-header{display:flex;justify-content:space-between;align-items:center;
+    margin:20px 0 12px}
 .section-header h2{font-size:.98rem;font-weight:700;color:var(--g800)}
 .section-header .count{background:var(--green);color:#fff;padding:2px 10px;
     border-radius:12px;font-size:.72rem;font-weight:700}
-.refresh-btn{
-    background:var(--g50);border:1px solid var(--g100);color:var(--g600);
+.refresh-btn{background:var(--g50);border:1px solid var(--g100);color:var(--g600);
     padding:6px 12px;border-radius:20px;font-size:.72rem;font-weight:600;
-    cursor:pointer;font-family:inherit;transition:var(--t);
-}
+    cursor:pointer;font-family:inherit;transition:var(--t)}
 .refresh-btn:active{transform:scale(.95)}
 
-/* ========= DETAIL ROW ========= */
 .detail-row{display:flex;justify-content:space-between;padding:8px 0;
     border-bottom:1px solid var(--g50);font-size:.82rem}
 .detail-row:last-child{border-bottom:none}
@@ -267,7 +201,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .detail-row .value{color:var(--g800);font-weight:600;text-align:right;
     max-width:60%;word-break:break-word}
 
-/* ========= TOAST ========= */
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);
     background:var(--g800);color:#fff;padding:12px 24px;border-radius:16px;
     font-size:.83rem;font-weight:500;box-shadow:var(--sh-lg);z-index:9999;
@@ -276,7 +209,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .toast.success{background:var(--green-d)}
 .toast.error{background:var(--red)}
 
-/* ========= BOTTOM NAV ========= */
 .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);
     max-width:480px;width:100%;background:#fff;border-top:1px solid var(--g100);
     display:flex;justify-content:space-around;
@@ -297,16 +229,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
     display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-.upload-progress{height:4px;background:var(--g100);border-radius:2px;
-    overflow:hidden;margin-top:8px}
-.upload-progress .bar{height:100%;background:var(--green);width:0%;
-    transition:width .3s ease}
 </style>
 </head>
 <body>
 
-<!-- ======================= LOGIN ======================= -->
+<!-- ===================== LOGIN ===================== -->
 <div id="loginScreen">
     <div class="login-card">
         <div class="login-logo">🔐</div>
@@ -324,12 +251,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         <form id="loginForm" autocomplete="on">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="loginUser" placeholder="Enter username"
+                <input type="text" id="loginUser" placeholder="gate / dept / carrier"
                        autocomplete="username" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="loginPass" placeholder="Enter password"
+                <input type="password" id="loginPass" placeholder="Password"
                        autocomplete="current-password" required>
             </div>
             <button type="submit" class="btn btn-primary" id="loginBtn">
@@ -344,7 +271,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     </div>
 </div>
 
-<!-- ======================= APP ======================= -->
+<!-- ===================== APP ===================== -->
 <div class="app-container" id="app" style="display:none">
 
     <header class="app-header">
@@ -360,17 +287,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         </div>
     </header>
 
-    <!-- Role switcher hidden — role is fixed after login -->
-    <!-- Uncomment below if you want to allow switching roles after login -->
-    <!--
-    <div class="role-switcher" id="roleSwitcher">
-        <button class="active" data-role="gate" onclick="switchRole('gate')">🚪 Main Gate</button>
-        <button data-role="department" onclick="switchRole('department')">🏢 Department</button>
-        <button data-role="carrier" onclick="switchRole('carrier')">🚚 Carrier</button>
-    </div>
-    -->
-
-    <!-- === MAIN GATE PANEL === -->
+    <!-- === MAIN GATE === -->
     <div class="panel" id="panel-gate">
         <div class="section-header">
             <h2>Pending Releases</h2>
@@ -385,7 +302,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         <div id="releasedList"></div>
     </div>
 
-    <!-- === DEPARTMENT PANEL === -->
+    <!-- === DEPARTMENT === -->
     <div class="panel" id="panel-department">
         <div class="section-header"><h2>Create Gate Pass Record</h2></div>
         <form id="deptForm" class="card">
@@ -433,7 +350,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         <div id="deptRecords"></div>
     </div>
 
-    <!-- === CARRIER PANEL === -->
+    <!-- === CARRIER === -->
     <div class="panel" id="panel-carrier">
         <div class="section-header">
             <h2>My Assigned Items</h2>
@@ -469,7 +386,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     </nav>
 </div>
 
-<!-- ======================= CAMERA MODAL ======================= -->
+<!-- ===================== CAMERA MODAL ===================== -->
 <div id="cameraModal">
     <div class="camera-header">
         <span class="title">📷 Capture Carrier Image</span>
@@ -504,11 +421,10 @@ if (!window.FirebaseApp) {
       '❌ Firebase failed. Open DevTools (F12) → Console.</div>';
     throw new Error('FirebaseApp missing');
 }
-const { db, storage, ref, push, set, onValue, update,
-        storageRef, uploadBytesResumable, getDownloadURL } = window.FirebaseApp;
+const { db, ref, push, set, onValue, update, get, child } = window.FirebaseApp;
 
 // ---- State ----
-let currentUser = null;          // { username, role }
+let currentUser = null;
 let currentRole = 'gate';
 let allPasses = {};
 let watchId = null;
@@ -517,16 +433,15 @@ let directionsService = null;
 let directionsRenderer = null;
 let currentCarrierPassId = null;
 
-// Camera state
+// Camera
 let cameraStream = null;
 let cameraFacing = 'environment';
 let currentCapturePassId = null;
 let capturedBlob = null;
 
-// Memory maps (survive re-render)
-const selectedFiles = {};        // passId → Blob
-const selectedPreview = {};      // passId → dataURL
-const openReleaseForms = {};     // passId → { open, officerName }
+// Memory maps (survive re-renders)
+const selectedPreview = {};     // passId → dataURL
+const openReleaseForms = {};    // passId → { open, officerName }
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -535,12 +450,11 @@ const $$ = s => document.querySelectorAll(s);
 // AUTH
 // ==================================================================
 const USERS = {
-    gate:      { password: 'gate123',    label: 'Security Officer' },
-    dept:      { password: 'dept123',    label: 'Department Staff' },
-    carrier:   { password: 'carrier123', label: 'Delivery Person' }
+    gate:       { password: 'gate123',    role: 'gate',       label: 'Security Officer' },
+    dept:       { password: 'dept123',    role: 'department', label: 'Department Staff' },
+    department: { password: 'dept123',    role: 'department', label: 'Department Staff' },
+    carrier:    { password: 'carrier123', role: 'carrier',    label: 'Delivery Person' }
 };
-
-const ROLE_MAP = { gate: 'gate', department: 'department', carrier: 'carrier' };
 
 let loginRole = 'gate';
 
@@ -549,6 +463,10 @@ document.querySelectorAll('#loginRoleTabs button').forEach(b => {
         document.querySelectorAll('#loginRoleTabs button').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         loginRole = b.dataset.role;
+        const map = { gate: 'gate', department: 'dept', carrier: 'carrier' };
+        $('#loginUser').value = map[loginRole] || '';
+        $('#loginPass').value = '';
+        $('#loginPass').focus();
         $('#loginError').classList.remove('show');
     });
 });
@@ -557,28 +475,25 @@ $('#loginForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const user = $('#loginUser').value.trim().toLowerCase();
     const pass = $('#loginPass').value;
-    const expectedRole = loginRole;
+    const err  = $('#loginError');
 
-    // Verify the user exists AND its role matches the tab selected
+    console.log('🔑 Login:', JSON.stringify(user), '| pass length:', pass.length);
+
     const userRecord = USERS[user];
-    const roleMatches = userRecord && (
-        (expectedRole === 'gate'      && user === 'gate') ||
-        (expectedRole === 'department'&& user === 'dept') ||
-        (expectedRole === 'carrier'   && user === 'carrier')
-    );
-
-    if (!userRecord || userRecord.password !== pass || !roleMatches) {
-        const err = $('#loginError');
-        err.textContent = '❌ Invalid credentials for ' +
-            (expectedRole === 'department' ? 'Department' :
-             expectedRole === 'carrier' ? 'Carrier' : 'Main Gate');
+    if (!userRecord) {
+        err.textContent = `❌ Unknown username "${user}". Use: gate, dept, or carrier`;
+        err.classList.add('show');
+        return;
+    }
+    if (userRecord.password !== pass) {
+        err.textContent = `❌ Wrong password for "${user}"`;
         err.classList.add('show');
         return;
     }
 
-    // Success
-    currentUser = { username: user, role: expectedRole, label: userRecord.label };
+    currentUser = { username: user, role: userRecord.role, label: userRecord.label };
     sessionStorage.setItem('gps_user', JSON.stringify(currentUser));
+    console.log('✅ Login OK →', currentUser);
     enterApp();
 });
 
@@ -594,7 +509,7 @@ function enterApp() {
     startPassesListener();
 }
 
-function logout() {
+window.logout = function() {
     if (!confirm('Sign out?')) return;
     sessionStorage.removeItem('gps_user');
     currentUser = null;
@@ -605,7 +520,7 @@ function logout() {
     $('#loginScreen').classList.remove('hidden');
     $('#loginForm').reset();
     $('#loginError').classList.remove('show');
-}
+};
 
 // Restore session
 (function restoreSession() {
@@ -613,7 +528,6 @@ function logout() {
     if (!raw) return;
     try {
         currentUser = JSON.parse(raw);
-        // small delay so Firebase module finishes
         setTimeout(enterApp, 300);
     } catch (e) { sessionStorage.removeItem('gps_user'); }
 })();
@@ -622,10 +536,7 @@ function logout() {
 // ROLE SWITCHING
 // ==================================================================
 window.switchRole = function(role) {
-    // If user is logged in as gate, they can only see gate panel
-    // If admin, allow switching
     currentRole = role;
-
     $$('#bottomNav button').forEach(b => {
         b.classList.toggle('active', b.dataset.role === role);
     });
@@ -661,7 +572,7 @@ function showToast(msg, type = '') {
 }
 
 // ==================================================================
-// FIREBASE LISTENER — Real-time updates
+// FIREBASE LISTENER
 // ==================================================================
 let passesListenerStarted = false;
 
@@ -672,7 +583,7 @@ function startPassesListener() {
     const passesRef = ref(db, 'gate_passes');
     onValue(passesRef, (snapshot) => {
         allPasses = snapshot.val() || {};
-        console.log('📥 Data updated. Total passes:', Object.keys(allPasses).length);
+        console.log('📥 Data updated. Total:', Object.keys(allPasses).length);
         renderAllViews();
     }, (error) => {
         console.error('❌ Listener error:', error);
@@ -680,10 +591,8 @@ function startPassesListener() {
     });
 }
 
-// Manual refresh fallback
 window.manualRefresh = async function() {
     try {
-        const { get, child } = window.FirebaseApp;
         const snap = await get(child(ref(db), 'gate_passes'));
         allPasses = snap.val() || {};
         renderAllViews();
@@ -707,7 +616,6 @@ function renderGateView() {
     const releasedList = $('#releasedList');
     if (!pendingList || !releasedList) return;
 
-    // Save current form state
     document.querySelectorAll('[id^="release-form-"]').forEach(el => {
         const id = el.id.replace('release-form-', '');
         const officerInput = document.getElementById(`officer-${id}`);
@@ -723,18 +631,16 @@ function renderGateView() {
         else if (p.status === 'released' || p.status === 'delivered') released.push({ id, ...p });
     });
 
-    // Sort newest first
     pending.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     released.sort((a, b) => (b.releasedAt || 0) - (a.releasedAt || 0));
 
     $('#pendingCount').textContent = pending.length;
 
-    // Pending
     if (pending.length === 0) {
         pendingList.innerHTML = `
             <div class="empty-state">
                 <div class="icon">📭</div>
-                <p>No pending items. Department records will appear here in real-time.</p>
+                <p>No pending items.</p>
             </div>`;
     } else {
         pendingList.innerHTML = pending.map(p => {
@@ -790,10 +696,6 @@ function renderGateView() {
                         <img id="preview-${p.id}" class="captured-preview"
                              src="${previewSrc}" style="display:${previewDisplay}"
                              alt="Carrier">
-                        <div class="upload-progress" id="progress-wrap-${p.id}"
-                             style="display:none">
-                            <div class="bar" id="progress-bar-${p.id}"></div>
-                        </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm"
                         id="confirm-btn-${p.id}"
@@ -805,7 +707,6 @@ function renderGateView() {
         }).join('');
     }
 
-    // Released
     if (released.length === 0) {
         releasedList.innerHTML = `
             <div class="empty-state">
@@ -854,7 +755,7 @@ function renderDepartmentView() {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="icon">📝</div>
-                <p>No records yet. Use the form above to create one.</p>
+                <p>No records yet.</p>
             </div>`;
         return;
     }
@@ -877,11 +778,6 @@ function renderDepartmentView() {
         </div>
     `).join('');
 }
-
-// Department submit
-document.addEventListener('submit', (e) => {
-    if (e.target.id !== 'deptForm') return;
-});
 
 $('#deptForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -910,11 +806,9 @@ $('#deptForm')?.addEventListener('submit', async (e) => {
         const newRef = push(ref(db, 'gate_passes'));
         await set(newRef, data);
         console.log('✅ Dept record saved:', newRef.key);
-        showToast('✅ Record sent to Main Gate!', 'success');
+        showToast('✅ Sent to Main Gate!', 'success');
         $('#deptForm').reset();
         $('#deptDate').valueAsDate = new Date();
-
-        // Force refresh (in case listener lags)
         setTimeout(manualRefresh, 400);
     } catch (err) {
         console.error('❌ Dept submit error:', err);
@@ -925,11 +819,6 @@ $('#deptForm')?.addEventListener('submit', async (e) => {
     }
 });
 
-// Set date on load
-document.addEventListener('DOMContentLoaded', () => {
-    const d = $('#deptDate');
-    if (d) d.valueAsDate = new Date();
-});
 if ($('#deptDate')) $('#deptDate').valueAsDate = new Date();
 
 // ==================================================================
@@ -979,7 +868,7 @@ function renderCarrierView() {
 }
 
 // ==================================================================
-// OPEN / CLOSE RELEASE FORM
+// OPEN RELEASE FORM
 // ==================================================================
 window.openReleaseForm = function(passId) {
     const form = document.getElementById(`release-form-${passId}`);
@@ -1007,7 +896,6 @@ window.openCamera = async function(passId) {
     controls.style.display = 'flex';
 
     try {
-        // Try back camera first on mobile
         cameraStream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: { ideal: cameraFacing },
@@ -1018,21 +906,22 @@ window.openCamera = async function(passId) {
         });
         video.srcObject = cameraStream;
         await video.play().catch(() => {});
-        console.log('✅ Camera started. Facing:', cameraFacing);
+        console.log('✅ Camera started');
     } catch (err) {
         console.error('❌ Camera error:', err);
         let msg = 'Camera failed: ';
         if (err.name === 'NotAllowedError')
             msg += 'Permission denied. Allow camera in browser settings.';
         else if (err.name === 'NotFoundError')
-            msg += 'No camera found on this device.';
+            msg += 'No camera found.';
         else if (err.name === 'NotReadableError')
             msg += 'Camera is in use by another app.';
         else
             msg += err.message;
 
         alert('❌ ' + msg +
-              '\n\nNote: Camera requires HTTPS or localhost.');
+              '\n\n⚠️ Camera requires HTTPS. If you are viewing over HTTP, use: ' +
+              'Firebase Hosting, GitHub Pages (https), or ngrok.');
         closeCamera();
     }
 };
@@ -1049,7 +938,6 @@ function stopCamera() {
     if (cameraStream) {
         cameraStream.getTracks().forEach(t => t.stop());
         cameraStream = null;
-        console.log('🛑 Camera stopped');
     }
 }
 
@@ -1066,7 +954,6 @@ window.takePhoto = function() {
         $('#capturedImg').src = url;
         $('#capturePreview').classList.add('show');
         $('#cameraControls').style.display = 'none';
-        console.log('📸 Photo captured, size:', blob.size, 'bytes');
     }, 'image/jpeg', 0.85);
 };
 
@@ -1074,38 +961,6 @@ window.retakePhoto = function() {
     capturedBlob = null;
     $('#capturePreview').classList.remove('show');
     $('#cameraControls').style.display = 'flex';
-};
-
-window.usePhoto = function() {
-    if (!capturedBlob || !currentCapturePassId) return;
-
-    const passId = currentCapturePassId;
-
-    // Store blob in memory
-    selectedFiles[passId] = capturedBlob;
-
-    // Store preview dataURL for re-render survival
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        selectedPreview[passId] = e.target.result;
-
-        // Update the visible preview
-        const preview = document.getElementById(`preview-${passId}`);
-        if (preview) {
-            preview.src = e.target.result;
-            preview.style.display = 'block';
-        }
-
-        // Update the "tap to retake" label
-        const btn = document.querySelector(
-            `#release-form-${passId} .camera-capture-btn span`);
-        if (btn) btn.textContent = 'Tap to retake photo';
-
-        showToast('📸 Photo captured — tap Confirm to release', 'success');
-    };
-    reader.readAsDataURL(capturedBlob);
-
-    closeCamera();
 };
 
 window.switchCamera = async function() {
@@ -1120,108 +975,136 @@ window.switchCamera = async function() {
         await $('#cameraVideo').play().catch(() => {});
     } catch (err) {
         console.error('Switch camera error:', err);
-        showToast('⚠️ Cannot switch camera', 'error');
         cameraFacing = cameraFacing === 'environment' ? 'user' : 'environment';
     }
 };
 
 // ==================================================================
-// CONFIRM RELEASE
+// IMAGE HELPERS — compress + convert to base64
+// ==================================================================
+function compressImage(blob, maxWidth = 900, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const scale = Math.min(1, maxWidth / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width  = Math.round(img.width  * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(
+                b => b ? resolve(b) : reject(new Error('Compression failed')),
+                'image/jpeg',
+                quality
+            );
+        };
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = url;
+    });
+}
+
+function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload  = () => resolve(r.result);
+        r.onerror = () => reject(new Error('Read failed'));
+        r.readAsDataURL(blob);
+    });
+}
+
+window.usePhoto = async function() {
+    if (!capturedBlob || !currentCapturePassId) return;
+    const passId = currentCapturePassId;
+
+    try {
+        showToast('🔄 Processing image...');
+
+        const compressed = await compressImage(capturedBlob);
+        console.log('🗜️ Compressed:', capturedBlob.size, '→', compressed.size, 'bytes');
+
+        const dataUrl = await blobToDataURL(compressed);
+        selectedPreview[passId] = dataUrl;
+
+        const preview = document.getElementById(`preview-${passId}`);
+        if (preview) {
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+        }
+
+        const label = document.querySelector(
+            `#release-form-${passId} .camera-capture-btn span`);
+        if (label) label.textContent = 'Tap to retake photo';
+
+        showToast('📸 Photo ready — tap Confirm', 'success');
+        closeCamera();
+
+    } catch (err) {
+        console.error('❌ usePhoto error:', err);
+        showToast('❌ ' + err.message, 'error');
+    }
+};
+
+// ==================================================================
+// CONFIRM RELEASE — saves base64 directly to Realtime DB
 // ==================================================================
 window.confirmRelease = async function(passId) {
     console.log('🔵 confirmRelease:', passId);
 
     const officerInput = document.getElementById(`officer-${passId}`);
-    const officerName = officerInput ? officerInput.value.trim() : '';
-    const blob = selectedFiles[passId];
-
-    console.log('🔵 Officer:', officerName);
-    console.log('🔵 Blob:', blob ? blob.size + ' bytes' : 'none');
+    const officerName  = officerInput ? officerInput.value.trim() : '';
+    const dataUrl      = selectedPreview[passId];
 
     if (!officerName) {
         showToast('⚠️ Enter officer name', 'error');
         officerInput?.focus();
         return;
     }
-    if (!blob) {
+    if (!dataUrl) {
         showToast('⚠️ Capture carrier photo first', 'error');
         return;
     }
 
     const btn = document.getElementById(`confirm-btn-${passId}`);
-    const pWrap = document.getElementById(`progress-wrap-${passId}`);
-    const pBar = document.getElementById(`progress-bar-${passId}`);
-
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Uploading...'; }
-    if (pWrap) pWrap.style.display = 'block';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Saving...';
+    }
 
     try {
-        const file = new File([blob], `${passId}.jpg`, { type: 'image/jpeg' });
-        const fileRef = storageRef(storage, `carrier_images/${passId}_${Date.now()}.jpg`);
-        console.log('🔵 Uploading...');
-        const task = uploadBytesResumable(fileRef, file);
+        await update(ref(db, `gate_passes/${passId}`), {
+            status:              'released',
+            securityOfficerName: officerName,
+            carrierImageUrl:     dataUrl,
+            releasedAt:          Date.now()
+        });
 
-        task.on('state_changed',
-            (snap) => {
-                const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-                if (pBar) pBar.style.width = pct + '%';
-            },
-            (err) => {
-                console.error('❌ Upload error:', err);
-                alert('❌ Image upload failed:\n\nCode: ' + err.code +
-                      '\n' + err.message +
-                      '\n\n👉 Enable Firebase Storage and set rules:\n' +
-                      'Storage → Rules → allow write: if true;');
-                if (btn) { btn.disabled = false; btn.innerHTML = '✅ Confirm Release'; }
-                if (pWrap) pWrap.style.display = 'none';
-            },
-            async () => {
-                try {
-                    const url = await getDownloadURL(task.snapshot.ref);
-                    console.log('✅ Uploaded:', url);
+        console.log('✅ Saved to Realtime DB');
 
-                    await update(ref(db, `gate_passes/${passId}`), {
-                        status: 'released',
-                        securityOfficerName: officerName,
-                        carrierImageUrl: url,
-                        releasedAt: Date.now()
-                    });
+        delete selectedPreview[passId];
+        delete openReleaseForms[passId];
 
-                    console.log('✅ DB updated');
+        showToast('✅ Item released!', 'success');
+        setTimeout(() => manualRefresh(), 300);
 
-                    // Cleanup memory
-                    delete selectedFiles[passId];
-                    delete selectedPreview[passId];
-                    delete openReleaseForms[passId];
-
-                    showToast('✅ Item released!', 'success');
-
-                    // Force refresh in case listener lags
-                    setTimeout(manualRefresh, 300);
-                } catch (err) {
-                    console.error('❌ Post-upload error:', err);
-                    alert('❌ Save failed:\n' + err.message);
-                    if (btn) { btn.disabled = false; btn.innerHTML = '✅ Confirm Release'; }
-                    if (pWrap) pWrap.style.display = 'none';
-                }
-            }
-        );
     } catch (err) {
-        console.error('❌ confirmRelease:', err);
-        alert('❌ ' + err.message);
-        if (btn) { btn.disabled = false; btn.innerHTML = '✅ Confirm Release'; }
+        console.error('❌ Save error:', err);
+        alert('❌ Save failed:\n\n' + err.message +
+              '\n\n👉 Check Realtime Database rules allow write.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '✅ Confirm Release';
+        }
     }
 };
 
 // ==================================================================
-// GOOGLE MAPS + TRACKING
+// GOOGLE MAPS
 // ==================================================================
 function initCarrierMap() {
     if (map) return;
-    if (typeof google === 'undefined') {
-        console.warn('Google Maps not loaded yet');
-        return;
-    }
+    if (typeof google === 'undefined') return;
     const el = document.getElementById('map');
     if (!el) return;
 
@@ -1349,7 +1232,6 @@ function statusLabel(s) {
     return { pending_gate:'Pending', released:'Released', delivered:'Delivered' }[s] || s;
 }
 
-// Global error handlers
 window.addEventListener('error', e => console.error('❌', e.error || e.message));
 window.addEventListener('unhandledrejection', e => console.error('❌ Promise:', e.reason));
 
