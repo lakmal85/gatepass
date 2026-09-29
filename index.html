@@ -6,8 +6,11 @@
 <meta name="theme-color" content="#0d9488">
 <title>Gate Pass Management System</title>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD73rkPwCGrZsrK2DdKM59A8yx8YkP8Doc&libraries=geometry,places"></script>
+<!-- Leaflet (free maps, no API key) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- Firebase -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, set, onValue, update, get, child }
@@ -171,8 +174,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .badge-released{background:#d1fae5;color:#065f46}
 .badge-delivered{background:#dbeafe;color:#1e40af}
 
-.map-container{width:100%;height:300px;border-radius:16px;overflow:hidden;
-    margin-bottom:16px;box-shadow:var(--sh-md);border:2px solid var(--green)}
+.map-container{width:100%;height:320px;border-radius:16px;overflow:hidden;
+    margin-bottom:16px;box-shadow:var(--sh-md);border:2px solid var(--green);
+    position:relative;z-index:1}
+#map{width:100%;height:100%}
+.leaflet-container{font-family:inherit}
+
 .live-indicator{display:flex;align-items:center;gap:8px;padding:10px 14px;
     background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(30,64,175,.08));
     border-radius:8px;font-size:.78rem;color:var(--g600);margin-bottom:12px;
@@ -364,7 +371,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
                 <div class="live-dot"></div>
                 <span id="locationStatus">Acquiring GPS signal...</span>
             </div>
-            <div class="map-container" id="map"></div>
+            <div class="map-container"><div id="map"></div></div>
             <div class="card">
                 <div class="detail-row"><span class="label">Distance</span>
                     <span class="value" id="distanceInfo">--</span></div>
@@ -429,9 +436,11 @@ let currentRole = 'gate';
 let allPasses = {};
 let watchId = null;
 let map = null;
-let directionsService = null;
-let directionsRenderer = null;
+let userMarker = null;
+let destMarker = null;
+let routeLine = null;
 let currentCarrierPassId = null;
+const geocodeCache = {};
 
 // Camera
 let cameraStream = null;
@@ -440,8 +449,8 @@ let currentCapturePassId = null;
 let capturedBlob = null;
 
 // Memory maps (survive re-renders)
-const selectedPreview = {};     // passId → dataURL
-const openReleaseForms = {};    // passId → { open, officerName }
+const selectedPreview = {};
+const openReleaseForms = {};
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -476,8 +485,6 @@ $('#loginForm').addEventListener('submit', (e) => {
     const user = $('#loginUser').value.trim().toLowerCase();
     const pass = $('#loginPass').value;
     const err  = $('#loginError');
-
-    console.log('🔑 Login:', JSON.stringify(user), '| pass length:', pass.length);
 
     const userRecord = USERS[user];
     if (!userRecord) {
@@ -553,7 +560,8 @@ window.switchRole = function(role) {
     $('#headerSubtitle').textContent = headers[role].sub;
 
     if (role === 'carrier') {
-        initCarrierMap();
+        // Delay map init so the panel is visible first (Leaflet needs visible container)
+        setTimeout(() => initCarrierMap(), 150);
     } else {
         stopLocationTracking();
     }
@@ -906,7 +914,6 @@ window.openCamera = async function(passId) {
         });
         video.srcObject = cameraStream;
         await video.play().catch(() => {});
-        console.log('✅ Camera started');
     } catch (err) {
         console.error('❌ Camera error:', err);
         let msg = 'Camera failed: ';
@@ -919,9 +926,7 @@ window.openCamera = async function(passId) {
         else
             msg += err.message;
 
-        alert('❌ ' + msg +
-              '\n\n⚠️ Camera requires HTTPS. If you are viewing over HTTP, use: ' +
-              'Firebase Hosting, GitHub Pages (https), or ngrok.');
+        alert('❌ ' + msg + '\n\n⚠️ Camera requires HTTPS.');
         closeCamera();
     }
 };
@@ -980,7 +985,7 @@ window.switchCamera = async function() {
 };
 
 // ==================================================================
-// IMAGE HELPERS — compress + convert to base64
+// IMAGE HELPERS — compress + base64
 // ==================================================================
 function compressImage(blob, maxWidth = 900, quality = 0.7) {
     return new Promise((resolve, reject) => {
@@ -1047,11 +1052,9 @@ window.usePhoto = async function() {
 };
 
 // ==================================================================
-// CONFIRM RELEASE — saves base64 directly to Realtime DB
+// CONFIRM RELEASE — base64 into Realtime DB
 // ==================================================================
 window.confirmRelease = async function(passId) {
-    console.log('🔵 confirmRelease:', passId);
-
     const officerInput = document.getElementById(`officer-${passId}`);
     const officerName  = officerInput ? officerInput.value.trim() : '';
     const dataUrl      = selectedPreview[passId];
@@ -1080,8 +1083,6 @@ window.confirmRelease = async function(passId) {
             releasedAt:          Date.now()
         });
 
-        console.log('✅ Saved to Realtime DB');
-
         delete selectedPreview[passId];
         delete openReleaseForms[passId];
 
@@ -1100,37 +1101,30 @@ window.confirmRelease = async function(passId) {
 };
 
 // ==================================================================
-// GOOGLE MAPS
+// LEAFLET MAP + REAL-TIME LOCATION
 // ==================================================================
 function initCarrierMap() {
-    if (map) return;
-    if (typeof google === 'undefined') return;
+    if (map) {
+        setTimeout(() => map.invalidateSize(), 100);
+        return;
+    }
     const el = document.getElementById('map');
-    if (!el) return;
+    if (!el || typeof L === 'undefined') {
+        console.warn('Leaflet not loaded yet');
+        return;
+    }
 
-    map = new google.maps.Map(el, {
-        zoom: 14,
-        center: { lat: 6.9271, lng: 79.8612 },
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        styles: [
-            { elementType: "geometry", stylers: [{ color: "#f8fafc" }] },
-            { elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
-            { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-            { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-            { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#e2e8f0" }] },
-            { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
-            { featureType: "poi", elementType: "geometry", stylers: [{ color: "#f0fdf4" }] }
-        ]
-    });
+    map = L.map(el, {
+        zoomControl: true,
+        attributionControl: true
+    }).setView([6.9271, 79.8612], 14);
 
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: false,
-        polylineOptions: { strokeColor: '#0d9488', strokeWeight: 6, strokeOpacity: 0.9 }
-    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    console.log('✅ Leaflet map ready');
 }
 
 window.trackDelivery = function(passId) {
@@ -1138,38 +1132,52 @@ window.trackDelivery = function(passId) {
     $('#carrierMapSection').style.display = 'block';
 
     if (!map) initCarrierMap();
+    if (!map) {
+        showToast('⚠️ Map failed to load', 'error');
+        return;
+    }
+
+    // Force Leaflet to recalculate size now that section is visible
+    setTimeout(() => map.invalidateSize(), 250);
+
     if (watchId) navigator.geolocation.clearWatch(watchId);
 
     watchId = navigator.geolocation.watchPosition(
-        (position) => {
+        async (position) => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             $('#locationStatus').textContent =
                 `📍 GPS Active — ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
             $('#lastUpdate').textContent = new Date().toLocaleTimeString();
 
-            const pos = { lat, lng };
-            if (map) map.setCenter(pos);
+            const pos = [lat, lng];
 
-            if (window.userMarker) window.userMarker.setMap(null);
-            if (map) {
-                window.userMarker = new google.maps.Marker({
-                    position: pos, map: map, title: 'You',
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 12, fillColor: '#0d9488', fillOpacity: 1,
-                        strokeColor: '#ffffff', strokeWeight: 3
-                    },
-                    zIndex: 999
-                });
+            // Center map on user
+            if (map) map.setView(pos, map.getZoom());
+
+            // Update/create user marker (green pulsing dot)
+            if (userMarker) {
+                userMarker.setLatLng(pos);
+            } else {
+                userMarker = L.circleMarker(pos, {
+                    radius: 10,
+                    fillColor: '#0d9488',
+                    color: '#ffffff',
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(map).bindPopup('Your location');
             }
 
+            // Save to Firebase
             set(ref(db, `live_locations/${currentCarrierPassId}`), {
-                lat, lng, timestamp: Date.now(),
+                lat, lng,
+                timestamp: Date.now(),
                 accuracy: position.coords.accuracy
             }).catch(err => console.warn('Loc save err:', err));
 
-            updateRoute(pos);
+            // Draw route
+            await updateRoute(pos);
         },
         (error) => {
             $('#locationStatus').textContent = `⚠️ GPS: ${error.message}`;
@@ -1179,28 +1187,90 @@ window.trackDelivery = function(passId) {
 };
 
 async function updateRoute(origin) {
-    if (!currentCarrierPassId || !directionsService) return;
+    if (!currentCarrierPassId || !map) return;
     const pass = allPasses[currentCarrierPassId];
     if (!pass) return;
     const dest = pass.destinationAddress || pass.deliveryTo;
     if (!dest) return;
 
-    directionsService.route({
-        origin, destination: dest,
-        travelMode: google.maps.TravelMode.DRIVING,
-        drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' }
-    }, (result, status) => {
-        if (status === 'OK') {
-            directionsRenderer.setDirections(result);
-            let dist = 0, dur = 0;
-            result.routes[0].legs.forEach(l => { dist += l.distance.value; dur += l.duration.value; });
-            $('#distanceInfo').textContent =
-                dist > 1000 ? (dist / 1000).toFixed(1) + ' km' : dist + ' m';
-            $('#etaInfo').textContent = Math.round(dur / 60) + ' min';
-        } else {
-            $('#distanceInfo').textContent = 'Unavailable (' + status + ')';
+    try {
+        // 1) Geocode destination (cached)
+        let destCoords = geocodeCache[dest];
+        if (!destCoords) {
+            $('#distanceInfo').textContent = 'Locating...';
+            const geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='
+                         + encodeURIComponent(dest);
+            const res = await fetch(geoUrl, { headers: { 'Accept': 'application/json' } });
+            const arr = await res.json();
+            if (!arr || !arr.length) {
+                $('#distanceInfo').textContent = 'Address not found';
+                return;
+            }
+            destCoords = [parseFloat(arr[0].lat), parseFloat(arr[0].lon)];
+            geocodeCache[dest] = destCoords;
         }
-    });
+
+        // 2) Destination marker (blue teardrop)
+        if (destMarker) {
+            destMarker.setLatLng(destCoords);
+        } else {
+            destMarker = L.marker(destCoords, {
+                icon: L.divIcon({
+                    html: '<div style="background:#1e40af;width:22px;height:22px;' +
+                          'border-radius:50% 50% 50% 0;transform:rotate(-45deg);' +
+                          'border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>',
+                    className: '',
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 22]
+                })
+            }).addTo(map).bindPopup('Destination');
+        }
+
+        // 3) OSRM route
+        const [lat1, lon1] = origin;
+        const [lat2, lon2] = destCoords;
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/`
+                      + `${lon1},${lat1};${lon2},${lat2}`
+                      + `?overview=full&geometries=geojson`;
+
+        const routeRes = await fetch(osrmUrl);
+        const routeData = await routeRes.json();
+
+        if (!routeData.routes || !routeData.routes.length) {
+            $('#distanceInfo').textContent = 'No route';
+            return;
+        }
+
+        const route = routeData.routes[0];
+        const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+        // 4) Green route line
+        if (routeLine) {
+            routeLine.setLatLngs(coords);
+        } else {
+            routeLine = L.polyline(coords, {
+                color: '#0d9488',
+                weight: 6,
+                opacity: 0.9,
+                lineJoin: 'round'
+            }).addTo(map);
+        }
+
+        // 5) Fit view
+        const bounds = L.latLngBounds([origin, destCoords]);
+        map.fitBounds(bounds, { padding: [40, 40] });
+
+        // 6) Distance + ETA
+        const dist = route.distance;
+        const dur  = route.duration;
+        $('#distanceInfo').textContent =
+            dist > 1000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+        $('#etaInfo').textContent = Math.round(dur / 60) + ' min';
+
+    } catch (err) {
+        console.error('❌ Route error:', err);
+        $('#distanceInfo').textContent = 'Route error';
+    }
 }
 
 function stopLocationTracking() {
