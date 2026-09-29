@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d9488">
+    <title>Gate Pass Management System</title>
+
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=geometry,places"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, push, set, onValue, update, serverTimestamp }
+            from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL }
+            from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+        // === Firebase Configuration ===
+        const firebaseConfig = {
+  apiKey: "AIzaSyCzIgd061S77b_QSdl9aDHg2p_DEICENRw",
+  authDomain: "expensetracker-a81ee.firebaseapp.com",
+  databaseURL: "https://expensetracker-a81ee-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "expensetracker-a81ee",
+  storageBucket: "expensetracker-a81ee.firebasestorage.app",
+  messagingSenderId: "386142221621",
+  appId: "1:386142221621:web:a5344f1ec37983b3e2087c",
+  measurementId: "G-Y3Q9R12J2G"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const storage = getStorage(app);
+
+        // Make available globally for non-module script
+        window.FirebaseApp = { db, storage, ref, push, set, onValue, update, serverTimestamp, storageRef, uploadBytesResumable, getDownloadURL };
+    </script>
+
+    <style>
+        /* === CSS Variables: Green, Blue, White Theme === */
+        :root {
+            --primary-green: #0d9488;
+            --primary-green-light: #14b8a6;
+            --primary-green-dark: #0f766e;
+            --primary-blue: #1e40af;
+            --primary-blue-light: #3b82f6;
+            --primary-blue-dark: #1e3a8a;
+            --white: #ffffff;
+            --off-white: #f8fafc;
+            --gray-50: #f1f5f9;
+            --gray-100: #e2e8f0;
+            --gray-200: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-600: #475569;
+            --gray-800: #1e293b;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            background: var(--off-white);
+            color: var(--gray-800);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* === App Shell === */
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: var(--white);
+            position: relative;
+            box-shadow: 0 0 40px rgba(0,0,0,0.08);
+        }
+
+        /* === Top Header Bar === */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
+            color: var(--white);
+            padding: 20px 20px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .app-header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .app-header .subtitle {
+            font-size: 0.8rem;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        .app-header .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .app-header .status-badge {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* === Role Switcher === */
+        .role-switcher {
+            display: flex;
+            background: var(--gray-100);
+            border-radius: var(--radius-lg);
+            margin: 16px 20px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .role-switcher button {
+            flex: 1;
+            padding: 10px 8px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .role-switcher button.active {
+            background: var(--white);
+            color: var(--primary-green-dark);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* === Main Content Panels === */
+        .panel {
+            display: none;
+            padding: 0 20px 100px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === Cards === */
+        .card {
+            background: var(--white);
+            border: 1px solid var(--gray-100);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+
+        .card-subtitle {
+            font-size: 0.8rem;
+            color: var(--gray-400);
+            margin-top: 2px;
+        }
+
+        /* === Form Elements === */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-family: inherit;
+            background: var(--white);
+            color: var(--gray-800);
+            transition: var(--transition);
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 70px;
+        }
+
+        /* === Buttons === */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 13px 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+            width: 100%;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
+            color: var(--white);
+            box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(13, 148, 136, 0.45);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary-green-dark);
+            border: 1.5px solid var(--primary-green);
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            width: auto;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        /* === Image Upload === */
+        .image-upload-area {
+            border: 2px dashed var(--gray-200);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--gray-50);
+        }
+
+        .image-upload-area:hover {
+            border-color: var(--primary-green);
+            background: rgba(13, 148, 136, 0.04);
+        }
+
+        .image-upload-area input {
+            display: none;
+        }
+
+        .image-preview {
+            width: 100%;
+            max-height: 180px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* === Status Badges === */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-released {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-delivered {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* === Map Container === */
+        .map-container {
+            width: 100%;
+            height: 320px;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+            border: 2px solid var(--primary-green);
+        }
+
+        .map-container.fullscreen {
+            height: calc(100vh - 200px);
+        }
+
+        /* === Live Location Indicator === */
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, rgba(13,148,136,0.08), rgba(30,64,175,0.08));
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            color: var(--gray-600);
+            margin-bottom: 12px;
+            border: 1px solid rgba(13,148,136,0.15);
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+
+        /* === Empty State === */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray-400);
+        }
+
+        .empty-state .icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 0.85rem;
+        }
+
+        /* === Section Headers === */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0 12px;
+        }
+
+        .section-header h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+
+        .section-header .count {
+            background: var(--primary-green);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        /* === Detail Row === */
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--gray-50);
+            font-size: 0.83rem;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-row .label {
+            color: var(--gray-400);
+            font-weight: 500;
+        }
+
+        .detail-row .value {
+            color: var(--gray-800);
+            font-weight: 600;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        /* === Toast Notification === */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--gray-800);
+            color: var(--white);
+            padding: 12px 24px;
+            border-radius: var(--radius-lg);
+            font-size: 0.85rem;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success {
+            background: var(--primary-green-dark);
+        }
+
+        /* === Bottom Navigation === */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 480px;
+            width: 100%;
+            background: var(--white);
+            border-top: 1px solid var(--gray-100);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+            z-index: 200;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+        }
+
+        .bottom-nav button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            background: none;
+            border: none;
+            font-family: inherit;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--gray-400);
+            cursor: pointer;
+            padding: 4px 12px;
+            transition: var(--transition);
+            border-radius: var(--radius-sm);
+        }
+
+        .bottom-nav button.active {
+            color: var(--primary-green);
+        }
+
+        .bottom-nav button .nav-icon {
+            font-size: 1.2rem;
+        }
+
+        /* === Responsive === */
+        @media (min-width: 481px) {
+            .app-container {
+                border-radius: var(--radius-xl);
+                margin: 20px auto;
+                min-height: calc(100vh - 40px);
+                overflow: hidden;
+            }
+        }
+
+        /* === Loading Spinner === */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container" id="app">
+
+    <!-- === HEADER === -->
+    <header class="app-header">
+        <div class="header-row">
+            <div>
+                <h1 id="headerTitle">Main Gate</h1>
+                <p class="subtitle" id="headerSubtitle">Security Dashboard</p>
+            </div>
+            <div class="status-badge" id="headerBadge">● Online</div>
+        </div>
+    </header>
+
+    <!-- === ROLE SWITCHER === -->
+    <div class="role-switcher" id="roleSwitcher">
+        <button class="active" data-role="gate" onclick="switchRole('gate')">🚪 Main Gate</button>
+        <button data-role="department" onclick="switchRole('department')">🏢 Department</button>
+        <button data-role="carrier" onclick="switchRole('carrier')">🚚 Carrier</button>
+    </div>
+
+    <!-- === PANEL: MAIN GATE === -->
+    <div class="panel active" id="panel-gate">
+        <div class="section-header">
+            <h2>Pending Releases</h2>
+            <span class="count" id="pendingCount">0</span>
+        </div>
+        <div id="pendingList">
+            <div class="empty-state">
+                <div class="icon">📭</div>
+                <p>No pending items. Department records will appear here in real-time.</p>
+            </div>
+        </div>
+
+        <div class="section-header">
+            <h2>Recent Releases</h2>
+        </div>
+        <div id="releasedList">
+            <div class="empty-state">
+                <div class="icon">📋</div>
+                <p>No released items yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- === PANEL: DEPARTMENT === -->
+    <div class="panel" id="panel-department">
+        <div class="section-header">
+            <h2>Create Gate Pass Record</h2>
+        </div>
+        <form id="deptForm" class="card">
+            <div class="form-group">
+                <label>Serial Number (SN) *</label>
+                <input type="text" id="deptSN" placeholder="e.g., GP-2025-001" required>
+            </div>
+            <div class="form-group">
+                <label>Model / Equipment Name *</label>
+                <input type="text" id="deptModel" placeholder="e.g., Dell Latitude 5420" required>
+            </div>
+            <div class="form-group">
+                <label>Description *</label>
+                <textarea id="deptDescription" placeholder="Item details, condition, accessories..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Delivery From (Department) *</label>
+                <input type="text" id="deptFrom" placeholder="e.g., IT Department" required>
+            </div>
+            <div class="form-group">
+                <label>Delivery To (Destination Address) *</label>
+                <input type="text" id="deptTo" placeholder="e.g., 123 Galle Road, Colombo 03" required>
+            </div>
+            <div class="form-group">
+                <label>Recipient / Carrier Name *</label>
+                <input type="text" id="deptCarrier" placeholder="Person taking the item" required>
+            </div>
+            <div class="form-group">
+                <label>Mobile Number *</label>
+                <input type="tel" id="deptMobile" placeholder="+94 77 123 4567" required>
+            </div>
+            <div class="form-group">
+                <label>Date *</label>
+                <input type="date" id="deptDate" required>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                📤 Send to Main Gate
+            </button>
+        </form>
+
+        <div class="section-header">
+            <h2>My Department Records</h2>
+        </div>
+        <div id="deptRecords"></div>
+    </div>
+
+    <!-- === PANEL: CARRIER === -->
+    <div class="panel" id="panel-carrier">
+        <div class="section-header">
+            <h2>My Assigned Items</h2>
+        </div>
+        <div id="carrierItems">
+            <div class="empty-state">
+                <div class="icon">📦</div>
+                <p>No items assigned. Items released from Main Gate will appear here.</p>
+            </div>
+        </div>
+
+        <!-- Live Map Section -->
+        <div id="carrierMapSection" style="display:none;">
+            <div class="section-header">
+                <h2>Live Route Tracking</h2>
+            </div>
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                <span id="locationStatus">Acquiring GPS signal...</span>
+            </div>
+            <div class="map-container" id="map"></div>
+            <div class="card">
+                <div class="detail-row">
+                    <span class="label">Distance to Destination</span>
+                    <span class="value" id="distanceInfo">Calculating...</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Estimated Time</span>
+                    <span class="value" id="etaInfo">--</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Last Updated</span>
+                    <span class="value" id="lastUpdate">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === BOTTOM NAV === -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="active" onclick="switchRole('gate')">
+            <span class="nav-icon">🚪</span>
+            <span>Gate</span>
+        </button>
+        <button onclick="switchRole('department')">
+            <span class="nav-icon">🏢</span>
+            <span>Department</span>
+        </button>
+        <button onclick="switchRole('carrier')">
+            <span class="nav-icon">🚚</span>
+            <span>Carrier</span>
+        </button>
+    </nav>
+
+</div>
+
+<!-- === TOAST === -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+    // ============================================================
+    // GATE PASS SYSTEM - CORE LOGIC
+    // ============================================================
+
+    const { db, storage, ref, push, set, onValue, update, serverTimestamp, storageRef, uploadBytesResumable, getDownloadURL } = window.FirebaseApp;
+
+    // --- State ---
+    let currentRole = 'gate';
+    let allPasses = {};
+    let watchId = null;
+    let map = null;
+    let directionsService = null;
+    let directionsRenderer = null;
+    let currentCarrierPassId = null;
+
+    // --- DOM Helpers ---
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    // ============================================================
+    // ROLE SWITCHING
+    // ============================================================
+
+    window.switchRole = function(role) {
+        currentRole = role;
+
+        // Update switcher
+        $$('#roleSwitcher button').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+        $$('#bottomNav button').forEach((b, i) => {
+            const roles = ['gate', 'department', 'carrier'];
+            b.classList.toggle('active', roles[i] === role);
+        });
+
+        // Update panels
+        $$('.panel').forEach(p => p.classList.remove('active'));
+        $(`#panel-${role}`).classList.add('active');
+
+        // Update header
+        const headers = {
+            gate: { title: 'Main Gate', sub: 'Security Dashboard' },
+            department: { title: 'Department', sub: 'Gate Pass Creation' },
+            carrier: { title: 'Carrier', sub: 'Delivery Tracking' }
+        };
+        $('#headerTitle').textContent = headers[role].title;
+        $('#headerSubtitle').textContent = headers[role].sub;
+
+        // Role-specific init
+        if (role === 'carrier') {
+            initCarrierMap();
+            startLocationTracking();
+        } else {
+            stopLocationTracking();
+        }
+    };
+
+    // ============================================================
+    // TOAST NOTIFICATION
+    // ============================================================
+
+    function showToast(msg, type = '') {
+        const toast = $('#toast');
+        toast.textContent = msg;
+        toast.className = 'toast ' + type;
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ============================================================
+    // FIREBASE: LISTEN TO ALL GATE PASSES (Real-Time)
+    // ============================================================
+
+    const passesRef = ref(db, 'gate_passes');
+
+    onValue(passesRef, (snapshot) => {
+        allPasses = snapshot.val() || {};
+        renderAllViews();
+    });
+
+    function renderAllViews() {
+        renderGateView();
+        renderDepartmentView();
+        renderCarrierView();
+    }
+
+    // ============================================================
+    // MAIN GATE VIEW
+    // ============================================================
+
+    function renderGateView() {
+        const pendingList = $('#pendingList');
+        const releasedList = $('#releasedList');
+        const pendingCount = $('#pendingCount');
+
+        const pending = [];
+        const released = [];
+
+        Object.entries(allPasses).forEach(([id, pass]) => {
+            if (pass.status === 'pending_gate') pending.push({ id, ...pass });
+            else if (pass.status === 'released' || pass.status === 'delivered')
+                released.push({ id, ...pass });
+        });
+
+        pendingCount.textContent = pending.length;
+
+        // Render pending
+        if (pending.length === 0) {
+            pendingList.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📭</div>
+                    <p>No pending items. Department records will appear here in real-time.</p>
+                </div>`;
+        } else {
+            pendingList.innerHTML = pending.map(p => `
+                <div class="card" id="gate-card-${p.id}">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">${escapeHtml(p.model || 'Unknown Item')}</div>
+                            <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
+                        </div>
+                        <span class="badge badge-pending">Pending</span>
+                    </div>
+
+                    <div class="detail-row"><span class="label">Description</span><span class="value">${escapeHtml(p.description || '--')}</span></div>
+                    <div class="detail-row"><span class="label">From</span><span class="value">${escapeHtml(p.deliveryFrom || '--')}</span></div>
+                    <div class="detail-row"><span class="label">To</span><span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
+                    <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+                    <div class="detail-row"><span class="label">Mobile</span><span class="value">${escapeHtml(p.mobileNumber || '--')}</span></div>
+                    <div class="detail-row"><span class="label">Date</span><span class="value">${escapeHtml(p.date || '--')}</span></div>
+
+                    <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn btn-primary btn-sm" onclick="openReleaseForm('${p.id}')">
+                            🔓 Release Item
+                        </button>
+                    </div>
+
+                    <!-- Release Form (hidden by default) -->
+                    <div id="release-form-${p.id}" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--gray-100);">
+                        <div class="form-group">
+                            <label>Security Officer Name *</label>
+                            <input type="text" id="officer-${p.id}" placeholder="Officer name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Carrier Image (Required) *</label>
+                            <div class="image-upload-area" onclick="document.getElementById('carrier-img-${p.id}').click()">
+                                <span>📷 Tap to capture or upload image</span>
+                                <input type="file" id="carrier-img-${p.id}" accept="image/*" capture="environment"
+                                       onchange="previewImage(this, 'preview-${p.id}')">
+                            </div>
+                            <img id="preview-${p.id}" class="image-preview" alt="Carrier preview">
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="confirmRelease('${p.id}')">
+                            ✅ Confirm Release
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render released
+        if (released.length === 0) {
+            releasedList.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📋</div>
+                    <p>No released items yet.</p>
+                </div>`;
+        } else {
+            releasedList.innerHTML = released.map(p => `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">${escapeHtml(p.model || '--')}</div>
+                            <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
+                        </div>
+                        <span class="badge badge-${p.status === 'delivered' ? 'delivered' : 'released'}">
+                            ${p.status === 'delivered' ? 'Delivered' : 'Released'}
+                        </span>
+                    </div>
+                    <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+                    <div class="detail-row"><span class="label">Officer</span><span class="value">${escapeHtml(p.securityOfficerName || '--')}</span></div>
+                    <div class="detail-row"><span class="label">Released</span><span class="value">${formatTime(p.releasedAt)}</span></div>
+                </div>
+            `).join('');
+        }
+    }
+
+    // ============================================================
+    // DEPARTMENT VIEW
+    // ============================================================
+
+    function renderDepartmentView() {
+        const container = $('#deptRecords');
+        const deptPasses = Object.entries(allPasses)
+            .filter(([, p]) => p.createdByRole === 'department')
+            .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+
+        if (deptPasses.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📝</div>
+                    <p>No records created yet. Use the form above to create one.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = deptPasses.map(([id, p]) => `
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">${escapeHtml(p.model || '--')}</div>
+                        <div class="card-subtitle">${escapeHtml(p.serialNumber || '--')}</div>
+                    </div>
+                    <span class="badge badge-${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+                </div>
+                <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+                <div class="detail-row"><span class="label">Destination</span><span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
+                <div class="detail-row"><span class="label">Created</span><span class="value">${formatTime(p.createdAt)}</span></div>
+            </div>
+        `).join('');
+    }
+
+    // Department form submission
+    $('#deptForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const data = {
+            serialNumber: $('#deptSN').value.trim(),
+            model: $('#deptModel').value.trim(),
+            description: $('#deptDescription').value.trim(),
+            deliveryFrom: $('#deptFrom').value.trim(),
+            deliveryTo: $('#deptTo').value.trim(),
+            carrierName: $('#deptCarrier').value.trim(),
+            mobileNumber: $('#deptMobile').value.trim(),
+            date: $('#deptDate').value,
+            status: 'pending_gate',
+            createdByRole: 'department',
+            createdAt: Date.now(),
+            securityOfficerName: '',
+            carrierImageUrl: '',
+            destinationAddress: $('#deptTo').value.trim()
+        };
+
+        try {
+            const newRef = push(passesRef);
+            await set(newRef, data);
+            showToast('✅ Record sent to Main Gate!', 'success');
+            $('#deptForm').reset();
+        } catch (err) {
+            showToast('❌ Error: ' + err.message);
+        }
+    });
+
+    // Set today's date by default
+    $('#deptDate').valueAsDate = new Date();
+
+    // ============================================================
+    // CARRIER VIEW
+    // ============================================================
+
+    function renderCarrierView() {
+        const container = $('#carrierItems');
+        const carrierPasses = Object.entries(allPasses)
+            .filter(([, p]) => p.status === 'released' || p.status === 'delivered')
+            .sort((a, b) => (b[1].releasedAt || 0) - (a[1].releasedAt || 0));
+
+        if (carrierPasses.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📦</div>
+                    <p>No items assigned. Items released from Main Gate will appear here.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = carrierPasses.map(([id, p]) => `
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">${escapeHtml(p.model || '--')}</div>
+                        <div class="card-subtitle">SN: ${escapeHtml(p.serialNumber || '--')}</div>
+                    </div>
+                    <span class="badge badge-${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+                </div>
+                <div class="detail-row"><span class="label">Destination</span><span class="value">${escapeHtml(p.deliveryTo || '--')}</span></div>
+                <div class="detail-row"><span class="label">Carrier</span><span class="value">${escapeHtml(p.carrierName || '--')}</span></div>
+                <div class="detail-row"><span class="label">Released</span><span class="value">${formatTime(p.releasedAt)}</span></div>
+                ${p.status === 'released' ? `
+                    <div style="margin-top:12px;">
+                        <button class="btn btn-primary btn-sm" onclick="trackDelivery('${id}')">
+                            📍 Start Tracking This Delivery
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    // ============================================================
+    // IMAGE PREVIEW
+    // ============================================================
+
+    window.previewImage = function(input, previewId) {
+        const preview = document.getElementById(previewId);
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+
+    // ============================================================
+    // OPEN RELEASE FORM
+    // ============================================================
+
+    window.openReleaseForm = function(passId) {
+        const form = document.getElementById(`release-form-${passId}`);
+        if (form) {
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+    };
+
+    // ============================================================
+    // CONFIRM RELEASE (Main Gate)
+    // ============================================================
+
+    window.confirmRelease = async function(passId) {
+        const officerName = document.getElementById(`officer-${passId}`).value.trim();
+        const imageInput = document.getElementById(`carrier-img-${passId}`);
+
+        if (!officerName) {
+            showToast('⚠️ Please enter security officer name');
+            return;
+        }
+        if (!imageInput.files || !imageInput.files[0]) {
+            showToast('⚠️ Please capture carrier image');
+            return;
+        }
+
+        try {
+            // Upload image to Firebase Storage
+            const file = imageInput.files[0];
+            const fileRef = storageRef(storage, `carrier_images/${passId}_${Date.now()}.jpg`);
+            const uploadTask = uploadBytesResumable(fileRef, file);
+
+            uploadTask.on('state_changed', null, (err) => {
+                showToast('❌ Upload error: ' + err.message);
+            }, async () => {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+                // Update pass record
+                await update(ref(db, `gate_passes/${passId}`), {
+                    status: 'released',
+                    securityOfficerName: officerName,
+                    carrierImageUrl: downloadURL,
+                    releasedAt: Date.now()
+                });
+
+                showToast('✅ Item released successfully!', 'success');
+            });
+
+        } catch (err) {
+            showToast('❌ Error: ' + err.message);
+        }
+    };
+
+    // ============================================================
+    // GOOGLE MAPS + REAL-TIME LOCATION TRACKING
+    // ============================================================
+
+    function initCarrierMap() {
+        if (map) return;
+
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 14,
+            center: { lat: 6.9271, lng: 79.8612 }, // Colombo default
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            styles: [
+                { elementType: "geometry", stylers: [{ color: "#f8fafc" }] },
+                { elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
+                { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+                { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+                { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#e2e8f0" }] },
+                { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
+                { featureType: "poi", elementType: "geometry", stylers: [{ color: "#f0fdf4" }] }
+            ]
+        });
+
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: false,
+            polylineOptions: {
+                strokeColor: '#0d9488', // GREEN route polyline
+                strokeWeight: 6,
+                strokeOpacity: 0.9
+            }
+        });
+    }
+
+    // ============================================================
+    // START REAL-TIME LOCATION TRACKING
+    // ============================================================
+
+    window.trackDelivery = function(passId) {
+        currentCarrierPassId = passId;
+        $('#carrierMapSection').style.display = 'block';
+
+        // Initialize map if not already
+        if (!map) initCarrierMap();
+
+        // Start watching location
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+        }
+
+        watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                // Update UI
+                $('#locationStatus').textContent = `📍 GPS Active — ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                $('#lastUpdate').textContent = new Date().toLocaleTimeString();
+
+                // Center map on user with green marker
+                const userPos = { lat, lng };
+                map.setCenter(userPos);
+
+                // Add/update user marker (green)
+                if (window.userMarker) window.userMarker.setMap(null);
+                window.userMarker = new google.maps.Marker({
+                    position: userPos,
+                    map: map,
+                    title: 'Your Location',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12,
+                        fillColor: '#0d9488',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 3
+                    },
+                    zIndex: 999
+                });
+
+                // Save location to Firebase Realtime Database
+                const locRef = ref(db, `live_locations/${currentCarrierPassId}`);
+                set(locRef, {
+                    lat: lat,
+                    lng: lng,
+                    timestamp: Date.now(),
+                    accuracy: position.coords.accuracy
+                });
+
+                // Update route to destination
+                updateRoute(userPos);
+            },
+            (error) => {
+                $('#locationStatus').textContent = `⚠️ GPS Error: ${error.message}`;
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 5000,
+                timeout: 15000
+            }
+        );
+    };
+
+    // ============================================================
+    // UPDATE ROUTE TO DESTINATION (Green Polyline)
+    // ============================================================
+
+    async function updateRoute(origin) {
+        if (!currentCarrierPassId) return;
+
+        const pass = allPasses[currentCarrierPassId];
+        if (!pass) return;
+
+        const destination = pass.destinationAddress || pass.deliveryTo;
+        if (!destination) return;
+
+        try {
+            directionsService.route({
+                origin: origin,
+                destination: destination,
+                travelMode: google.maps.TravelMode.DRIVING,
+                drivingOptions: {
+                    departureTime: new Date(),
+                    trafficModel: 'bestguess'
+                }
+            }, (result, status) => {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(result);
+
+                    // Calculate distance and ETA
+                    const route = result.routes[0];
+                    let totalDistance = 0;
+                    let totalDuration = 0;
+
+                    route.legs.forEach(leg => {
+                        totalDistance += leg.distance.value;
+                        totalDuration += leg.duration.value;
+                    });
+
+                    $('#distanceInfo').textContent =
+                        totalDistance > 1000
+                            ? (totalDistance / 1000).toFixed(1) + ' km'
+                            : totalDistance + ' m';
+
+                    $('#etaInfo').textContent =
+                        Math.round(totalDuration / 60) + ' min';
+                } else {
+                    $('#distanceInfo').textContent = 'Route unavailable';
+                }
+            });
+        } catch (err) {
+            console.error('Route error:', err);
+        }
+    }
+
+    // ============================================================
+    // STOP LOCATION TRACKING
+    // ============================================================
+
+    function stopLocationTracking() {
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+    }
+
+    // ============================================================
+    // UTILITY FUNCTIONS
+    // ============================================================
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function formatTime(ts) {
+        if (!ts) return '--';
+        return new Date(ts).toLocaleString('en-LK', {
+            hour: '2-digit', minute: '2-digit',
+            day: '2-digit', month: 'short'
+        });
+    }
+
+    function statusBadge(status) {
+        return {
+            pending_gate: 'pending',
+            released: 'released',
+            delivered: 'delivered'
+        }[status] || 'pending';
+    }
+
+    function statusLabel(status) {
+        return {
+            pending_gate: 'Pending',
+            released: 'Released',
+            delivered: 'Delivered'
+        }[status] || status;
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+
+    console.log('Gate Pass System loaded.');
+    console.log('Roles: gate | department | carrier');
+
+</script>
+</body>
+</html>
